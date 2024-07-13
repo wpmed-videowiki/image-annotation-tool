@@ -1,0 +1,21 @@
+body {
+  background-color: #eee;
+}
+
+a {
+  text-decoration: none;
+}
+
+.tui-image-editor-header-logo {
+  display: none;
+}
+
+.tui-image-editor-container .color-picker-control .tui-colorpicker-palette-button {
+  width: 15px;
+  height: 15px;
+}
+
+.tui-colorpicker-palette-container ul.tui-colorpicker-clearfix {
+  display: flex;
+  flex-wrap: wrap;
+}
