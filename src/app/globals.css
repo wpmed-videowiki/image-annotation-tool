@@ -19,3 +19,6 @@ a {
   display: flex;
   flex-wrap: wrap;
 }
+.tui-image-editor-controls-logo img {
+  display: none !important;
+}

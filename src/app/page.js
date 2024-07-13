@@ -15,6 +15,7 @@ import { getAppUser } from "./actions/auth";
 import UpdateArticleSourceForm from "./components/UpdateArticleSourceForm";
 import { useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
+import "tui-image-editor/dist/tui-image-editor.css";
 
 const ImageEditor = dynamic(() => import("./components/ImageEditor"), {
   ssr: false,

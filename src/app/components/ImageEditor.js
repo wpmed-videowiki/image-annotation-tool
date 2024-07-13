@@ -30,10 +30,7 @@ const ImageEditor = ({ image, instanceRef }) => {
     }
   }, [image, instanceRef.current, containerRef.current]);
   return (
-    <div
-      ref={containerRef}
-      style={{ height: (containerWidth.current * 3) / 5 }}
-    >
+    <div ref={containerRef} style={{ height: containerWidth.current }}>
       <div id="tui-image-editor"></div>;
     </div>
   );

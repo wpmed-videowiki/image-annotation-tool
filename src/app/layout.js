@@ -20,12 +20,6 @@ export default async function RootLayout({ children }) {
   const messages = await getMessages();
   return (
     <html lang={locale}>
-      <head>
-        <link
-          rel="stylesheet"
-          href="https://uicdn.toast.com/tui-image-editor/latest/tui-image-editor.css"
-        />
-      </head>
       <body className={inter.className}>
         <AppProviders>
           <NextIntlClientProvider messages={messages}>
