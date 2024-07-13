@@ -7,7 +7,6 @@ services:
     restart: unless-stopped
   mongodb:
     image: mongo:4.4.1
-    container_name: mongodb
     restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
