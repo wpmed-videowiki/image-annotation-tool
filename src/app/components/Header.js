@@ -21,6 +21,7 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { SUPPORTED_LOCALE_LANGUAGES } from "../config/constants";
 import { setLocaleToCookies } from "../actions/locale";
+import OtherTools from "./OtherTools";
 
 const Header = () => {
   const [anchorElUser, setAnchorElUser] = useState(null);
@@ -62,12 +63,18 @@ const Header = () => {
             sx={{
               display: { xs: "none", md: "flex" },
             }}
+            flexDirection="row"
+            justifyContent="center"
+            alignItems="center"
           >
             <Link href="/">
               <Stack direction="row" spacing={1} alignItems="center">
                 <img src="/logo.png" width={200} height={57} />
               </Stack>
             </Link>
+            <Stack sx={{ ml: 2 }}>
+              <OtherTools />
+            </Stack>
           </Stack>
 
           <Box sx={{ flexGrow: 0 }}>
@@ -79,7 +86,6 @@ const Header = () => {
                   onLocaleChange(e.target.value);
                 }}
                 size="small"
-                // sx={{ color: "white" }}
                 renderValue={(value) => {
                   const lang = SUPPORTED_LOCALE_LANGUAGES.find(
                     (l) => l.code === value
