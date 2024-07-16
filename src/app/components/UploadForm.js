@@ -1,7 +1,8 @@
 import {
   Button,
-  Menu,
   MenuItem,
+  Radio,
+  RadioGroup,
   Select,
   Stack,
   TextField,
@@ -59,16 +60,19 @@ const UploadForm = ({
   const fileTitleParts = title.split(".");
   fileTitleParts.pop();
   const tmpFileTitle = fileTitleParts.join(".") + "_annotated";
+  const fileExtension = title.split(".").pop();
 
   const [loading, setLoading] = useState(false);
+  const [overwriteFile, setOverwriteFile] = useState(false);
   const [selectedExtension, setSelectedExtension] = useState("png");
   const [fileTitle, setFileTitle] = useState(tmpFileTitle);
   const [debouncedFileTitle] = useDebounce(fileTitle, 500);
 
   const [pageAlreadyExists, setPageAlreadyExists] = useState(false);
+  const [uploadComment, setUploadComment] = useState("");
   const [text, setText] = useState(
     getWikiPageText({
-      description: `${fileTitle}. Created by [https://image-editor.wmcloud.org/ Image Editor Tool].`,
+      description: `${fileTitle}. Created by [https://image-annotation-tool.wmcloud.org/ Image Editor Tool].`,
       date: new Date().toISOString().split("T")[0],
       source: `[[:File:${title}]]`,
       author: `See [[:File:${title}|original file]] for the list of authors.`,
@@ -81,7 +85,7 @@ const UploadForm = ({
   const resetPageText = () => {
     setText(
       getWikiPageText({
-        description: `${fileTitle}. Created by [https://image-editor.wmcloud.org/ Image Editor Tool].`,
+        description: `${fileTitle}. Created by [https://image-annotation-tool.wmcloud.org/ Image Editor Tool].`,
         date: new Date().toISOString().split("T")[0],
         source: `[[:File:${title}]]`,
         author: `See [[:File:${title}|original file]] for the list of authors.`,
@@ -92,12 +96,19 @@ const UploadForm = ({
     );
   };
 
+  console.log({ title });
   const onUpload = async () => {
     setLoading(true);
     const dataUrl = await editorRef.current.toDataURL({
-      format: selectedExtension === "jpg" ? "jpeg" : selectedExtension,
+      format: overwriteFile
+        ? fileExtension === "jpg"
+          ? "jpeg"
+          : fileExtension
+        : selectedExtension === "jpg"
+        ? "jpeg"
+        : selectedExtension,
       quality: 1,
-      multiplier: 2
+      multiplier: 2,
     });
     const imageBlob = base64ToBlob(
       dataUrl.split(",")[1],
@@ -105,7 +116,15 @@ const UploadForm = ({
     );
     try {
       const formData = new FormData();
-      formData.set("filename", `File:${fileTitle}.${selectedExtension}`);
+      if (overwriteFile) {
+        formData.set("filename", `File:${title}`);
+      } else {
+        formData.set(
+          "filename",
+          `File:${fileTitle}.${selectedExtension}`.trim()
+        );
+      }
+      formData.set("comment", uploadComment.trim());
       formData.set("text", text);
       formData.set("file", imageBlob);
       formData.set("wikiSource", wikiSource);
@@ -188,61 +207,115 @@ const UploadForm = ({
 
   return (
     <Stack direction="column" spacing={2}>
-      <Stack spacing={1}>
-        <Typography variant="body2">{t("UploadForm_file_name")}</Typography>
-        <TextField
-          name="title"
-          value={fileTitle}
-          onChange={(e) => setFileTitle(e.target.value)}
-          size="small"
-          InputProps={{
-            sx: {
-              paddingRight: 0,
-            },
-            startAdornment: "File:",
-            endAdornment: (
-              <Select
-                value={selectedExtension}
-                onChange={(e) => setSelectedExtension(e.target.value)}
-              >
-                <MenuItem value="png">.png</MenuItem>
-                <MenuItem value="jpg">.jpg</MenuItem>
-                <MenuItem value="jpeg">.jpeg</MenuItem>
-              </Select>
-            ),
-          }}
-        />
-        {pageAlreadyExists && (
-          <Typography variant="body2" color="orange">
-            {t("UploadForm_file_name_already_exists")}
-          </Typography>
-        )}
-        {fileTitle.length >= 230 && (
-          <Typography variant="body2" color="red">
-            {t("UploadForm_file_name_too_long")}
-          </Typography>
-        )}
-      </Stack>
-      <Stack spacing={1}>
-        <Stack
-          direction="row"
-          alignItems="center"
-          justifyContent="space-between"
-        >
-          <Typography variant="body2">File Page source</Typography>
-          <Button size="small" onClick={resetPageText}>
-            {t("UploadForm_reset")}
-          </Button>
+      <RadioGroup
+        row
+        value={overwriteFile}
+        onChange={(e) => setOverwriteFile(e.target.value === "true")}
+      >
+        <Stack direction="row" spacing={2}>
+          <Stack
+            direction="row"
+            alignItems="center"
+            sx={{ cursor: "pointer" }}
+            onClick={() => setOverwriteFile(false)}
+          >
+            <Radio value="false" color="primary" size="small" />
+            {t("UploadForm_upload_as_new_file")}
+          </Stack>
+          {["jpg", "jpeg", "png"].includes(fileExtension) && (
+            <Stack
+              direction="row"
+              alignItems="center"
+              sx={{ cursor: "pointer" }}
+              onClick={() => setOverwriteFile(true)}
+            >
+              <Radio value="true" color="primary" size="small" />
+              {t("UploadForm_overwrite_file")}
+            </Stack>
+          )}
         </Stack>
-        <TextField
-          name="text"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          size="small"
-          multiline
-          rows={10}
-          maxRows={10}
-        />
+      </RadioGroup>
+      {!overwriteFile && (
+        <Stack spacing={1}>
+          <Typography variant="body2">{t("UploadForm_file_name")}</Typography>
+          <TextField
+            name="title"
+            value={fileTitle}
+            onChange={(e) => setFileTitle(e.target.value)}
+            size="small"
+            InputProps={{
+              sx: {
+                paddingRight: 0,
+              },
+              startAdornment: "File:",
+              endAdornment: (
+                <Select
+                  value={selectedExtension}
+                  onChange={(e) => setSelectedExtension(e.target.value)}
+                >
+                  <MenuItem value="png">.png</MenuItem>
+                  <MenuItem value="jpg">.jpg</MenuItem>
+                  <MenuItem value="jpeg">.jpeg</MenuItem>
+                </Select>
+              ),
+            }}
+          />
+          {pageAlreadyExists && (
+            <Typography variant="body2" color="orange">
+              {t("UploadForm_file_name_already_exists")}
+            </Typography>
+          )}
+          {fileTitle.length >= 230 && (
+            <Typography variant="body2" color="red">
+              {t("UploadForm_file_name_too_long")}
+            </Typography>
+          )}
+        </Stack>
+      )}
+      <Stack spacing={2}>
+        <Stack spacing={1}>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+          >
+            <Typography variant="body2">
+              {t("UploadForm_file_page_source")}
+            </Typography>
+            <Button size="small" onClick={resetPageText}>
+              {t("UploadForm_reset")}
+            </Button>
+          </Stack>
+          <TextField
+            name="text"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            size="small"
+            multiline
+            rows={10}
+            maxRows={10}
+          />
+        </Stack>
+        <Stack spacing={1}>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+          >
+            <Typography variant="body2">
+              {t("UploadForm_upload_comment")}
+            </Typography>
+          </Stack>
+          <TextField
+            name="text"
+            value={uploadComment}
+            onChange={(e) => setUploadComment(e.target.value)}
+            size="small"
+            multiline
+            rows={5}
+            maxRows={5}
+          />
+        </Stack>
         <Button
           variant="contained"
           color="primary"

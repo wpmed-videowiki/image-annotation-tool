@@ -65,7 +65,7 @@ export const updateArticleText = async (baseUrl, token, { title, text }) => {
 export const uploadFileToCommons = async (
   baseUrl,
   token,
-  { filename, text, file }
+  { filename, text, file, comment }
 ) => {
   try {
     const csrfToken = await fetchCSRFToken(baseUrl, token);
@@ -80,6 +80,7 @@ export const uploadFileToCommons = async (
             text: text,
             token: csrfToken,
             file,
+            comment: comment || '',
           },
           headers: {
             Authorization: `Bearer ${token}`,

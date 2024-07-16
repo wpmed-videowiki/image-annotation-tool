@@ -33,6 +33,7 @@ export const POST = async (req, res) => {
   const filename = data.get("filename");
   const text = data.get("text");
   const file = data.get("file");
+  const comment = data.get('comment');
   const provider = data.get("provider");
   const fileId = generateRandomId();
   const fileBuffer = Buffer.from(await file.arrayBuffer());
@@ -52,6 +53,7 @@ export const POST = async (req, res) => {
   const response = await uploadFileToCommons(baseUrl, token, {
     filename,
     text,
+    comment,
     file: fileStream,
   });
 
