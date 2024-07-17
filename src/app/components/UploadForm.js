@@ -18,6 +18,7 @@ import { base64ToBlob } from "../utils/base64ToBlob";
 import { useDebounce } from "use-debounce";
 import { useTranslations } from "next-intl";
 import { SUPPORTED_OVERWRITE_EXTENSIONS } from "../config/constants";
+import UpdateArticleSourceForm from "./UpdateArticleSourceForm";
 
 const getWikiPageText = ({
   description,
@@ -49,7 +50,7 @@ const UploadForm = ({
   permission,
   wikiSource,
   provider,
-  onUploaded,
+  originalFileName,
   disabled,
   categories = [],
   editorRef,
@@ -70,6 +71,7 @@ const UploadForm = ({
   const [selectedExtension, setSelectedExtension] = useState("png");
   const [fileTitle, setFileTitle] = useState(tmpFileTitle);
   const [debouncedFileTitle] = useDebounce(fileTitle, 500);
+  const [uploadedUrl, setUploadedUrl] = useState("");
 
   const [pageAlreadyExists, setPageAlreadyExists] = useState(false);
   const [uploadComment, setUploadComment] = useState("");
@@ -83,7 +85,7 @@ const UploadForm = ({
 
     setText(
       getWikiPageText({
-        description: `${fileTitle}. Created by [https://image-annotation-tool.wmcloud.org/ Image Editor Tool].`,
+        description: `${fileTitle}. Created by [https://image-annotation-tool.wmcloud.org/ Image Annotation Tool].`,
         date: new Date().toISOString().split("T")[0],
         source: `[[:File:${title}]]`,
         author: `See [[:File:${title}|original file]] for the list of authors.`,
@@ -129,7 +131,7 @@ const UploadForm = ({
 
       const response = await uploadFile(formData);
 
-      onUploaded(response.imageinfo);
+      setUploadedUrl(response.imageinfo.descriptionurl);
       toast.success("File uploaded successfully");
     } catch (err) {
       console.log(err);
@@ -204,6 +206,37 @@ const UploadForm = ({
       break;
     default:
       break;
+  }
+
+  if (uploadedUrl) {
+    return (
+      <Stack
+        justifyContent="center"
+        alignItems="center"
+        width="100%"
+        spacing={2}
+      >
+        <a href={uploadedUrl} target="_blank" rel="noreferrer">
+          {t("Index_view_on_commons")}
+        </a>
+        {wikiSource && (
+          <>
+            <a
+              href={wikiSource}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {t("Index_view_original_page")}
+            </a>
+            <UpdateArticleSourceForm
+              wikiSource={wikiSource}
+              originalFileName={originalFileName}
+              fileName={uploadedUrl.split("/").pop()}
+            />
+          </>
+        )}
+      </Stack>
+    );
   }
 
   return (

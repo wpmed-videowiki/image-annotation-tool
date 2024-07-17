@@ -12,7 +12,6 @@ import UploadForm from "./components/UploadForm";
 import Header from "./components/Header";
 import SearchForm from "./components/SearchForm";
 import { getAppUser } from "./actions/auth";
-import UpdateArticleSourceForm from "./components/UpdateArticleSourceForm";
 import { useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
 import "tui-image-editor/dist/tui-image-editor.css";
@@ -35,10 +34,6 @@ export default function Home() {
   const [uploadedUrl, setUploadedUrl] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const containerRef = useRef(null);
-
-  const onUploaded = (imageinfo) => {
-    setUploadedUrl(imageinfo.descriptionurl);
-  };
 
   useEffect(() => {
     async function init() {
@@ -103,13 +98,15 @@ export default function Home() {
       <Container maxWidth="xl">
         <Grid container columnSpacing={4} rowSpacing={0} marginTop={11}>
           <Grid item xs={12} md={9} ref={containerRef}>
-            {imageUrl && (
-              <ImageEditor image={imageUrl} instanceRef={instanceRef} />
-            )}
+            <ImageEditor
+              key={imageUrl}
+              image={imageUrl}
+              instanceRef={instanceRef}
+            />
           </Grid>
           <Grid item xs={12} md={3}>
             <Stack spacing={5}>
-              {page && !uploadedUrl && (
+              {page && (
                 <>
                   <UploadForm
                     title={page?.title.replace(/\s/g, "_").replace("File:", "")}
@@ -119,8 +116,8 @@ export default function Home() {
                     editorRef={instanceRef}
                     permission={permission}
                     categories={categories}
-                    onUploaded={onUploaded}
                     wikiSource={searchParams.get("wikiSource")}
+                    originalFileName={searchParams.get("file")}
                     pageContent={originalPageSource}
                     provider={
                       page?.imageinfo[0].descriptionurl.includes(
@@ -131,34 +128,6 @@ export default function Home() {
                     }
                   />
                 </>
-              )}
-              {uploadedUrl && (
-                <Stack
-                  justifyContent="center"
-                  alignItems="center"
-                  width="100%"
-                  spacing={2}
-                >
-                  <a href={uploadedUrl} target="_blank" rel="noreferrer">
-                    {t("Index_view_on_commons")}
-                  </a>
-                  {searchParams.get("wikiSource") && (
-                    <>
-                      <a
-                        href={searchParams.get("wikiSource")}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {t("Index_view_original_page")}
-                      </a>
-                      <UpdateArticleSourceForm
-                        wikiSource={searchParams.get("wikiSource")}
-                        originalFileName={searchParams.get("file")}
-                        fileName={uploadedUrl.split("/").pop()}
-                      />
-                    </>
-                  )}
-                </Stack>
               )}
             </Stack>
           </Grid>
