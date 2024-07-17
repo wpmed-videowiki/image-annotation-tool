@@ -17,6 +17,7 @@ import { toast } from "react-toastify";
 import { base64ToBlob } from "../utils/base64ToBlob";
 import { useDebounce } from "use-debounce";
 import { useTranslations } from "next-intl";
+import { SUPPORTED_OVERWRITE_EXTENSIONS } from "../config/constants";
 
 const getWikiPageText = ({
   description,
@@ -46,13 +47,13 @@ const UploadForm = ({
   title,
   license,
   permission,
-  video,
   wikiSource,
   provider,
   onUploaded,
   disabled,
   categories = [],
   editorRef,
+  pageContent,
 }) => {
   const { data: session } = useSession();
   const t = useTranslations();
@@ -63,26 +64,23 @@ const UploadForm = ({
   const fileExtension = title.split(".").pop();
 
   const [loading, setLoading] = useState(false);
-  const [overwriteFile, setOverwriteFile] = useState(false);
+  const [overwriteFile, setOverwriteFile] = useState(
+    SUPPORTED_OVERWRITE_EXTENSIONS.includes(fileExtension)
+  );
   const [selectedExtension, setSelectedExtension] = useState("png");
   const [fileTitle, setFileTitle] = useState(tmpFileTitle);
   const [debouncedFileTitle] = useDebounce(fileTitle, 500);
 
   const [pageAlreadyExists, setPageAlreadyExists] = useState(false);
   const [uploadComment, setUploadComment] = useState("");
-  const [text, setText] = useState(
-    getWikiPageText({
-      description: `${fileTitle}. Created by [https://image-annotation-tool.wmcloud.org/ Image Editor Tool].`,
-      date: new Date().toISOString().split("T")[0],
-      source: `[[:File:${title}]]`,
-      author: `See [[:File:${title}|original file]] for the list of authors.`,
-      license: license,
-      permission,
-      categories,
-    })
-  );
+  const [text, setText] = useState("");
 
   const resetPageText = () => {
+    if (pageContent && overwriteFile) {
+      setText(pageContent);
+      return;
+    }
+
     setText(
       getWikiPageText({
         description: `${fileTitle}. Created by [https://image-annotation-tool.wmcloud.org/ Image Editor Tool].`,
@@ -96,7 +94,6 @@ const UploadForm = ({
     );
   };
 
-  console.log({ title });
   const onUpload = async () => {
     setLoading(true);
     const dataUrl = await editorRef.current.toDataURL({
@@ -156,6 +153,10 @@ const UploadForm = ({
     checkFileExists();
   }, [debouncedFileTitle, selectedExtension]);
 
+  useEffect(() => {
+    resetPageText();
+  }, [pageContent, overwriteFile]);
+
   switch (provider) {
     case "commons":
       if (!session?.user?.wikimediaId) {
@@ -213,16 +214,7 @@ const UploadForm = ({
         onChange={(e) => setOverwriteFile(e.target.value === "true")}
       >
         <Stack direction="row" spacing={2}>
-          <Stack
-            direction="row"
-            alignItems="center"
-            sx={{ cursor: "pointer" }}
-            onClick={() => setOverwriteFile(false)}
-          >
-            <Radio value="false" color="primary" size="small" />
-            {t("UploadForm_upload_as_new_file")}
-          </Stack>
-          {["jpg", "jpeg", "png"].includes(fileExtension) && (
+          {SUPPORTED_OVERWRITE_EXTENSIONS.includes(fileExtension) && (
             <Stack
               direction="row"
               alignItems="center"
@@ -233,6 +225,15 @@ const UploadForm = ({
               {t("UploadForm_overwrite_file")}
             </Stack>
           )}
+          <Stack
+            direction="row"
+            alignItems="center"
+            sx={{ cursor: "pointer" }}
+            onClick={() => setOverwriteFile(false)}
+          >
+            <Radio value="false" color="primary" size="small" />
+            {t("UploadForm_upload_as_new_file")}
+          </Stack>
         </Stack>
       </RadioGroup>
       {!overwriteFile && (

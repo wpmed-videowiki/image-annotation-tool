@@ -28,6 +28,7 @@ export default function Home() {
   const t = useTranslations();
 
   const [page, setPage] = useState();
+  const [originalPageSource, setOriginalPageSource] = useState("");
   const [permission, setPermission] = useState("");
   const [license, setLicense] = useState("");
   const [categories, setCategories] = useState([]);
@@ -70,6 +71,7 @@ export default function Home() {
       const categories = extractCategories(
         pageSource.revisions?.[0].content || ""
       );
+      setOriginalPageSource(pageSource.revisions?.[0].content || "");
       setCategories(categories);
       setLicense(license);
       setPermission(permission);
@@ -119,6 +121,7 @@ export default function Home() {
                     categories={categories}
                     onUploaded={onUploaded}
                     wikiSource={searchParams.get("wikiSource")}
+                    pageContent={originalPageSource}
                     provider={
                       page?.imageinfo[0].descriptionurl.includes(
                         "nccommons.org"

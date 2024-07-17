@@ -10,9 +10,7 @@ const COMMONS_BASE_URL = "https://commons.wikimedia.org/w/api.php";
 const NCCOMMONS_BASE_URL = "https://nccommons.org/w/api.php";
 
 const getFetchImageUrl = (baseUrl, fileName) =>
-  `${baseUrl}/w/api.php?action=query&titles=${encodeURIComponent(
-    fileName
-  )}&prop=imageinfo&iiprop=url|mediatype|size|extmetadata&iiurlwidth=${PLAYER_IMAGE_WIDTH}&format=json&formatversion=2`;
+  `${baseUrl}/w/api.php?action=query&titles=${fileName}&prop=imageinfo&iiprop=url|mediatype|size|extmetadata&iiurlwidth=${PLAYER_IMAGE_WIDTH}&format=json&formatversion=2`;
 
 export const fetchCommonsImage = async (fileName) => {
   let infoUrl = getFetchImageUrl(COMMONS_BASE_URL, fileName);
@@ -71,9 +69,7 @@ export const fetchPageSource = async (wikiSource) => {
   const baseUrl = wikiSource.split("/wiki/")[0];
   const title = wikiSource.split("/wiki/")[1];
 
-  const sourceUrl = `${baseUrl}/w/api.php?action=query&titles=${encodeURIComponent(
-    title
-  )}&prop=revisions&rvprop=content&format=json&formatversion=2`;
+  const sourceUrl = `${baseUrl}/w/api.php?action=query&titles=${title}&prop=revisions&rvprop=content&format=json&formatversion=2`;
 
   const response = await fetch(sourceUrl, {
     headers: {

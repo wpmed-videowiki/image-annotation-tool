@@ -4,3 +4,5 @@ export const SUPPORTED_LOCALE_LANGUAGES = [
     code: "en",
   },
 ];
+
+export const SUPPORTED_OVERWRITE_EXTENSIONS = ["jpg", "jpeg", "png"];
