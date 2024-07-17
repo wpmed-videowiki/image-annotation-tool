@@ -10,7 +10,9 @@ a {
   display: none;
 }
 
-.tui-image-editor-container .color-picker-control .tui-colorpicker-palette-button {
+.tui-image-editor-container
+  .color-picker-control
+  .tui-colorpicker-palette-button {
   width: 15px;
   height: 15px;
 }
@@ -21,4 +23,13 @@ a {
 }
 .tui-image-editor-controls-logo img {
   display: none !important;
+}
+.tui-image-editor-container .tui-image-editor-help-menu.top,
+.tui-image-editor-menu {
+  max-width: 100%;
+  overflow-y: auto;
+}
+
+.tui-image-editor-header-buttons {
+  display: none;
 }

@@ -4,7 +4,7 @@ import ImageEditorComp from "tui-image-editor";
 // default color red
 const DEFAULT_COLOR = "#ff4040";
 
-const ImageEditor = ({ image, instanceRef }) => {
+const ImageEditor = ({ image, instanceRef, aspectRatio }) => {
   const containerRef = useRef(null);
 
   const containerWidth = useRef(null);
@@ -27,9 +27,6 @@ const ImageEditor = ({ image, instanceRef }) => {
               "common.bi.image": "",
             },
           },
-          cssMaxWidth: containerWidth.current,
-          cssMaxHeight: containerWidth.current,
-          cssHeight: containerWidth,
         }
       );
       instanceRef.current = instance;
@@ -86,7 +83,7 @@ const ImageEditor = ({ image, instanceRef }) => {
     }
   }, [image, instanceRef.current, containerRef.current]);
   return (
-    <div ref={containerRef} style={{ height: containerWidth.current }}>
+    <div ref={containerRef} style={{ height: "calc(100vh - 80px)" }}>
       <div id="tui-image-editor"></div>;
     </div>
   );
