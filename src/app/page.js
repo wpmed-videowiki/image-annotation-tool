@@ -77,7 +77,7 @@ export default function Home() {
 
   if (!searchParams.get("file")) {
     return (
-      <main>
+      <div>
         <Header />
         <Container maxWidth="xl">
           <Stack
@@ -88,51 +88,46 @@ export default function Home() {
             <SearchForm />
           </Stack>
         </Container>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main>
-      <Header />
-      <Container maxWidth="xl">
-        <Grid container columnSpacing={4} rowSpacing={0} marginTop={11}>
-          <Grid item xs={12} md={9} ref={containerRef}>
-            <ImageEditor
-              key={imageUrl}
-              image={imageUrl}
-              instanceRef={instanceRef}
-            />
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <Stack spacing={5}>
-              {page && (
-                <>
-                  <UploadForm
-                    title={page?.title.replace(/\s/g, "_").replace("File:", "")}
-                    license={
-                      license || page?.imageinfo[0].extmetadata.License?.value
-                    }
-                    editorRef={instanceRef}
-                    permission={permission}
-                    categories={categories}
-                    wikiSource={searchParams.get("wikiSource")}
-                    originalFileName={searchParams.get("file")}
-                    pageContent={originalPageSource}
-                    provider={
-                      page?.imageinfo[0].descriptionurl.includes(
-                        "nccommons.org"
-                      )
-                        ? "nccommons"
-                        : "commons"
-                    }
-                  />
-                </>
-              )}
-            </Stack>
-          </Grid>
+    <Container maxWidth="xl">
+      <Grid container columnSpacing={4} rowSpacing={0}>
+        <Grid item xs={12} md={9} ref={containerRef}>
+          <ImageEditor
+            key={imageUrl}
+            image={imageUrl}
+            instanceRef={instanceRef}
+          />
         </Grid>
-      </Container>
-    </main>
+        <Grid item xs={12} md={3}>
+          <Stack spacing={5}>
+            {page && (
+              <>
+                <UploadForm
+                  title={page?.title.replace(/\s/g, "_").replace("File:", "")}
+                  license={
+                    license || page?.imageinfo[0].extmetadata.License?.value
+                  }
+                  editorRef={instanceRef}
+                  permission={permission}
+                  categories={categories}
+                  wikiSource={searchParams.get("wikiSource")}
+                  originalFileName={searchParams.get("file")}
+                  pageContent={originalPageSource}
+                  provider={
+                    page?.imageinfo[0].descriptionurl.includes("nccommons.org")
+                      ? "nccommons"
+                      : "commons"
+                  }
+                />
+              </>
+            )}
+          </Stack>
+        </Grid>
+      </Grid>
+    </Container>
   );
 }

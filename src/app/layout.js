@@ -3,6 +3,8 @@ import "./globals.css";
 import AppProviders from "./AppProviders";
 import { getLocale, getMessages } from "next-intl/server";
 import { NextIntlClientProvider } from "next-intl";
+import Header from "./components/Header";
+import { Box } from "@mui/material";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -23,7 +25,10 @@ export default async function RootLayout({ children }) {
       <body className={inter.className}>
         <AppProviders>
           <NextIntlClientProvider messages={messages}>
-            {children}
+            <main>
+              <Header />
+              <Box sx={{ marginTop: 11 }}>{children}</Box>
+            </main>
           </NextIntlClientProvider>
         </AppProviders>
       </body>

@@ -1,3 +1,4 @@
+"use client";
 import { Language } from "@mui/icons-material";
 import {
   AppBar,
@@ -72,6 +73,9 @@ const Header = () => {
                 <img src="/logo.png" width={200} height={57} />
               </Stack>
             </Link>
+            <Stack sx={{ ml: 2 }}>
+              <Link href="/stats">{t("Stats_link")}</Link>
+            </Stack>
             <Stack sx={{ ml: 2 }}>
               <OtherTools />
             </Stack>

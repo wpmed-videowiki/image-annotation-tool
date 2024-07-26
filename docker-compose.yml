@@ -1,9 +1,13 @@
 version: "3"
 services:
   image-annotation-tool:
-    build: .
+    image: image-annotation-tool:latest
     ports:
       - "3001:3000"
+    restart: unless-stopped
+  image-annotation-tool-worker:
+    image: image-annotation-tool:latest
+    command: npm run start:worker
     restart: unless-stopped
   mongodb:
     image: mongo:4.4.1
@@ -13,3 +17,9 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     volumes:
       - ./data:/data/db
+  rabbitmq:
+    image: rabbitmq:3.8.9-management
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}

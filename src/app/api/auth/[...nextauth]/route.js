@@ -69,6 +69,7 @@ const handler = async (req, res) => {
               [`${provider}RefreshToken`]: data.account.refresh_token,
               [`${provider}TokenExpiresAt`]: data.account.expires_at * 1000,
               [`${provider}Profile`]: data.profile,
+              authenticated: true,
             };
             await UserModel.findByIdAndUpdate(appUserId, {
               $set: update,

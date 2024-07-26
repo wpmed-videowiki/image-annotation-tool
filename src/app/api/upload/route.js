@@ -3,26 +3,12 @@ import { exec } from "child_process";
 import fs from "fs";
 import { uploadFileToCommons } from "../utils/uploadUtils";
 import UserModel from "../../models/User";
+import ImageUploadModel from "../../models/ImageUpload";
 
 const COMMONS_BASE_URL = "https://commons.wikimedia.org/w/api.php";
 const NCCOMMONS_BASE_URL = "https://nccommons.org/w/api.php";
 
 const generateRandomId = () => Math.random().toString(36).substring(7);
-
-const addSilentToFile = (filePath, encodedFilePath) => {
-  return new Promise((resolve, reject) => {
-    // reencode the file using ffmpeg to webm and add silent audio
-    const cmd = `ffmpeg -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 -i ${filePath} -crf 23  -c:v libvpx-vp9 -pix_fmt yuv420p -c:a libvorbis -shortest ${encodedFilePath}`;
-
-    exec(cmd, (err, stdout, stderr) => {
-      if (err) {
-        console.error(err);
-        reject(err);
-      }
-      resolve();
-    });
-  });
-};
 
 export const POST = async (req, res) => {
   const appUserId = req.cookies.get("app-user-id")?.value;
@@ -33,7 +19,7 @@ export const POST = async (req, res) => {
   const filename = data.get("filename");
   const text = data.get("text");
   const file = data.get("file");
-  const comment = data.get('comment');
+  const comment = data.get("comment");
   const provider = data.get("provider");
   const fileId = generateRandomId();
   const fileBuffer = Buffer.from(await file.arrayBuffer());
@@ -56,6 +42,24 @@ export const POST = async (req, res) => {
     comment,
     file: fileStream,
   });
+  if (response?.imageinfo?.descriptionurl) {
+    try {
+      const existingUpload = await ImageUploadModel.findOne({
+        url: response.imageinfo.descriptionurl,
+      });
+
+      if (!existingUpload) {
+        await ImageUploadModel.create({
+          url: response.imageinfo.descriptionurl,
+          fileName: filename,
+          provider: provider === "nccommons" ? "nccommons" : "commons",
+          uploadedBy: user._id,
+        });
+      }
+    } catch (err) {
+      console.log("Error saving uplaod to db", err);
+    }
+  }
 
   await fs.promises.unlink(fileLocation);
   return NextResponse.json(response);
