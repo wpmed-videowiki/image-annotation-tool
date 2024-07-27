@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import { whiteTheme } from "./white-theme";
+import {blackTheme} from './black-theme'
 import ImageEditorComp from "tui-image-editor";
 
 // default color red
@@ -6,7 +8,6 @@ const DEFAULT_COLOR = "#ff4040";
 
 const ImageEditor = ({ image, instanceRef, aspectRatio }) => {
   const containerRef = useRef(null);
-
   const containerWidth = useRef(null);
 
   useEffect(() => {
@@ -23,9 +24,8 @@ const ImageEditor = ({ image, instanceRef, aspectRatio }) => {
               name: "SampleImage",
             },
             menuBarPosition: "bottom",
-            theme: {
-              "common.bi.image": "",
-            },
+            // theme: theme.current === "black" ? blackTheme : whiteTheme,
+            theme: whiteTheme,
           },
         }
       );

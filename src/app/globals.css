@@ -33,3 +33,15 @@ a {
 .tui-image-editor-header-buttons {
   display: none;
 }
+
+.tui-image-editor-main-container {
+  background-color: #eee !important;
+}
+.tui-image-editor-submenu-style {
+  background-color: white !important;
+  opacity: 0.9;
+}
+
+.tui-image-editor-menu {
+  overflow: unset !important;
+}
