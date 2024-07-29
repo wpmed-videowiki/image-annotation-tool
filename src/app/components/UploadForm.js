@@ -65,9 +65,7 @@ const UploadForm = ({
   const fileExtension = title.split(".").pop();
 
   const [loading, setLoading] = useState(false);
-  const [overwriteFile, setOverwriteFile] = useState(
-    SUPPORTED_OVERWRITE_EXTENSIONS.includes(fileExtension)
-  );
+  const [overwriteFile, setOverwriteFile] = useState(false);
   const [selectedExtension, setSelectedExtension] = useState("png");
   const [fileTitle, setFileTitle] = useState(tmpFileTitle);
   const [debouncedFileTitle] = useDebounce(fileTitle, 500);
@@ -221,11 +219,7 @@ const UploadForm = ({
         </a>
         {wikiSource && (
           <>
-            <a
-              href={wikiSource}
-              target="_blank"
-              rel="noreferrer"
-            >
+            <a href={wikiSource} target="_blank" rel="noreferrer">
               {t("Index_view_original_page")}
             </a>
             <UpdateArticleSourceForm
