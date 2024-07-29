@@ -24,6 +24,7 @@ const ImageEditor = ({ image, instanceRef, aspectRatio }) => {
               name: "SampleImage",
             },
             menuBarPosition: "bottom",
+            menu: ['icon', 'resize', 'crop', 'flip', 'rotate', 'draw', 'shape', 'text', 'mask', 'filter'],
             // theme: theme.current === "black" ? blackTheme : whiteTheme,
             theme: whiteTheme,
           },
