@@ -30,6 +30,7 @@ const getWikiPageText = ({
   author,
   permission,
   categories,
+  otherVersions,
 }) =>
   `
 == {{int:filedesc}} ==
@@ -38,7 +39,8 @@ const getWikiPageText = ({
 |Date=${date}
 |Source=${source}
 |Permission=${permission}
-|Author=${author}
+${author ? `|Author=${author}` : ""}
+${otherVersions ? `|other versions=${otherVersions}` : ""}
 }}
 
 == {{int:license-header}} ==
@@ -57,6 +59,7 @@ const UploadForm = ({
   categories = [],
   editorRef,
   pageContent,
+  author,
 }) => {
   const { data: session } = useSession();
   const t = useTranslations();
@@ -88,7 +91,8 @@ const UploadForm = ({
         description: `${fileTitle}. Created by [https://image-annotation-tool.wmcloud.org/ Image Annotation Tool].`,
         date: new Date().toISOString().split("T")[0],
         source: `[[:File:${title}]]`,
-        author: `See [[:File:${title}|original file]] for the list of authors.`,
+        author,
+        otherVersions: `See [[:File:${title}|original file]].`,
         license: license,
         permission,
         categories,

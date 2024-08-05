@@ -7,6 +7,7 @@ import {
   extractLicenseTag,
   extractPermission,
   extractCategories,
+  extractAuthor,
 } from "./utils/sourceParser";
 import UploadForm from "./components/UploadForm";
 import Header from "./components/Header";
@@ -16,6 +17,9 @@ import { useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
 import "tui-image-editor/dist/tui-image-editor.css";
 
+// const SVGEditor = dynamic(() => import("./components/SVGEditor"), {
+//   ssr: false,
+// });
 const ImageEditor = dynamic(() => import("./components/ImageEditor"), {
   ssr: false,
 });
@@ -31,6 +35,7 @@ export default function Home() {
   const [permission, setPermission] = useState("");
   const [license, setLicense] = useState("");
   const [categories, setCategories] = useState([]);
+  const [author, setAuthor] = useState("");
   const [uploadedUrl, setUploadedUrl] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const containerRef = useRef(null);
@@ -66,11 +71,13 @@ export default function Home() {
       const categories = extractCategories(
         pageSource.revisions?.[0].content || ""
       );
+      const author = extractAuthor(pageSource.revisions?.[0].content || "");
       setOriginalPageSource(pageSource.revisions?.[0].content || "");
       setCategories(categories);
       setLicense(license);
       setPermission(permission);
       setPage(page);
+      setAuthor(author);
     }
     init();
   }, [searchParams.get("file"), containerRef.current]);
@@ -100,7 +107,9 @@ export default function Home() {
             key={imageUrl}
             image={imageUrl}
             instanceRef={instanceRef}
+            id="image-editor"
           />
+          {/* <SVGEditor /> */}
         </Grid>
         <Grid item xs={12} md={3}>
           <Stack spacing={5}>
@@ -117,6 +126,7 @@ export default function Home() {
                   wikiSource={searchParams.get("wikiSource")}
                   originalFileName={searchParams.get("file")}
                   pageContent={originalPageSource}
+                  author={author}
                   provider={
                     page?.imageinfo[0].descriptionurl.includes("nccommons.org")
                       ? "nccommons"

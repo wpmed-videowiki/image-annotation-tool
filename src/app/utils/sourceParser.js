@@ -27,6 +27,17 @@ export const extractPermission = (text) => {
   return "";
 };
 
+export const extractAuthor = (text) => {
+  const regex = /author[=\s*:]([^\n]*)/gi;
+  const match = text.match(regex);
+
+  if (match) {
+    return match[0].replace(/author[=\s*:]/gi, "").trim();
+  }
+  return "";
+};
+
+
 export const extractCategories = text => {
   const regex = /\[\[Category:([^\]]*)\]\]/gi;
   const matches = text.match(regex);
