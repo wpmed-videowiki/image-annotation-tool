@@ -146,6 +146,7 @@ const handler = async (req, res) => {
               wikimediaProfile: user.wikimediaProfile,
               mdwikiProfile: user.mdwikiProfile,
               nccommonsProfile: user.nccommonsProfile,
+              defaultUploadOption: user.defaultUploadOption || 'new',
             },
           });
         }

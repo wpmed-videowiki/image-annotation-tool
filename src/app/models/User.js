@@ -5,6 +5,7 @@ const Schema = mongoose.Schema;
 const UserSchema = new Schema(
   {
     username: { type: String, default: "" },
+    defaultUploadOption: { type: String, default: "new" },
 
     wikimediaId: { type: String, default: "" },
     wikimediaToken: { type: String, default: "" },

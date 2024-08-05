@@ -1,3 +1,4 @@
+"use client";
 import {
   Button,
   MenuItem,
@@ -18,6 +19,7 @@ import { base64ToBlob } from "../utils/base64ToBlob";
 import { useDebounce } from "use-debounce";
 import { useTranslations } from "next-intl";
 import { SUPPORTED_OVERWRITE_EXTENSIONS } from "../config/constants";
+import { updateUserDefaultUploadOption } from "../actions/user";
 import UpdateArticleSourceForm from "./UpdateArticleSourceForm";
 
 const getWikiPageText = ({
@@ -138,6 +140,11 @@ const UploadForm = ({
     setLoading(false);
   };
 
+  const onOverwriteFileChange = async (overwrite) => {
+    setOverwriteFile(overwrite);
+    await updateUserDefaultUploadOption(overwrite ? "overwrite" : "new");
+  };
+
   useEffect(() => {
     if (!debouncedFileTitle) return;
     async function checkFileExists() {
@@ -156,6 +163,12 @@ const UploadForm = ({
   useEffect(() => {
     resetPageText();
   }, [pageContent, overwriteFile]);
+
+  useEffect(() => {
+    if (session.user?.defaultUploadOption && SUPPORTED_OVERWRITE_EXTENSIONS.includes(fileExtension)) {
+      setOverwriteFile(session.user.defaultUploadOption === "overwrite");
+    }
+  }, [session.user?.defaultUploadOption, fileExtension]);
 
   switch (provider) {
     case "commons":
@@ -238,7 +251,7 @@ const UploadForm = ({
       <RadioGroup
         row
         value={overwriteFile}
-        onChange={(e) => setOverwriteFile(e.target.value === "true")}
+        onChange={(e) => onOverwriteFileChange(e.target.value === "true")}
       >
         <Stack direction="row" spacing={2}>
           {SUPPORTED_OVERWRITE_EXTENSIONS.includes(fileExtension) && (
@@ -246,7 +259,7 @@ const UploadForm = ({
               direction="row"
               alignItems="center"
               sx={{ cursor: "pointer" }}
-              onClick={() => setOverwriteFile(true)}
+              onClick={() => onOverwriteFileChange(true)}
             >
               <Radio value="true" color="primary" size="small" />
               {t("UploadForm_overwrite_file")}
@@ -256,7 +269,7 @@ const UploadForm = ({
             direction="row"
             alignItems="center"
             sx={{ cursor: "pointer" }}
-            onClick={() => setOverwriteFile(false)}
+            onClick={() => onOverwriteFileChange(false)}
           >
             <Radio value="false" color="primary" size="small" />
             {t("UploadForm_upload_as_new_file")}
