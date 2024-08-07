@@ -169,10 +169,10 @@ const UploadForm = ({
   }, [pageContent, overwriteFile]);
 
   useEffect(() => {
-    if (session.user?.defaultUploadOption && SUPPORTED_OVERWRITE_EXTENSIONS.includes(fileExtension)) {
+    if (session?.user?.defaultUploadOption && SUPPORTED_OVERWRITE_EXTENSIONS.includes(fileExtension)) {
       setOverwriteFile(session.user.defaultUploadOption === "overwrite");
     }
-  }, [session.user?.defaultUploadOption, fileExtension]);
+  }, [session?.user?.defaultUploadOption, fileExtension]);
 
   switch (provider) {
     case "commons":
