@@ -1,7 +1,5 @@
-FROM node:20.12.2
+FROM node:20.12.2-slim
 WORKDIR /app
-
-RUN apt update -y  
 
 # copy package.json and package-lock.json   
 COPY package*.json ./
