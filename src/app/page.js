@@ -17,9 +17,9 @@ import { useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
 import "tui-image-editor/dist/tui-image-editor.css";
 
-// const SVGEditor = dynamic(() => import("./components/SVGEditor"), {
-//   ssr: false,
-// });
+const SVGEditor = dynamic(() => import("./components/SVGEditor"), {
+  ssr: false,
+});
 const ImageEditor = dynamic(() => import("./components/ImageEditor"), {
   ssr: false,
 });
@@ -38,7 +38,9 @@ export default function Home() {
   const [author, setAuthor] = useState("");
   const [uploadedUrl, setUploadedUrl] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [originalImageUrl, setOriginalImageUrl] = useState("");
   const containerRef = useRef(null);
+  const fileName = searchParams.get("file");
 
   useEffect(() => {
     async function init() {
@@ -59,6 +61,7 @@ export default function Home() {
         searchParams.get("wikiSource")
       );
       setImageUrl(page.imageinfo[0].thumburl || page.imageinfo[0].url);
+      setOriginalImageUrl(page.imageinfo[0].url);
       const pageSource = await fetchPageSource(
         page.imageinfo[0].descriptionurl
       );
@@ -80,9 +83,9 @@ export default function Home() {
       setAuthor(author);
     }
     init();
-  }, [searchParams.get("file"), containerRef.current]);
+  }, [fileName, containerRef.current]);
 
-  if (!searchParams.get("file")) {
+  if (!fileName) {
     return (
       <div>
         <Header />
@@ -103,13 +106,20 @@ export default function Home() {
     <Container maxWidth="xl">
       <Grid container columnSpacing={4} rowSpacing={0}>
         <Grid item xs={12} md={9} ref={containerRef}>
-          <ImageEditor
-            key={imageUrl}
-            image={imageUrl}
-            instanceRef={instanceRef}
-            id="image-editor"
-          />
-          {/* <SVGEditor /> */}
+          {fileName.toLowerCase().endsWith(".svg") ? (
+            <SVGEditor
+              image={originalImageUrl}
+              key={originalImageUrl}
+              instanceRef={instanceRef}
+            />
+          ) : (
+            <ImageEditor
+              key={imageUrl}
+              image={imageUrl}
+              instanceRef={instanceRef}
+              id="tui-image-editor"
+            />
+          )}
         </Grid>
         <Grid item xs={12} md={3}>
           <Stack spacing={5}>

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 51.04 49.47">
+    <defs>
+        <style>
+            .layer {
+                transform: scale(0.15);
+            }
+        </style>
+    </defs>
+    <g class="layer">
+        <path
+            d="m136.44681,226.75766l47.24773,-47.40907l-91.35118,0l-91.35098,0l0,-29.34846l0,-29.34849l90.303,0c49.66658,0 90.30293,-1.48752 90.30293,-3.30561c0,-1.81805 -19.77211,-23.15214 -43.93797,-47.40906l-43.93811,-44.1035l40.61224,0l40.61209,0l62.02386,62.14279l62.02383,62.14276l-62.14281,62.02386l-62.14279,62.02386l-42.75481,0l-42.75491,0l47.24786,-47.40909z"
+            fill="#f9ba00" stroke="#0000" stroke-width="5" stroke-dasharray="null" stroke-linejoin='null'
+            stroke-linecap='null' stroke-opacity='null' />
+    </g>
+</svg>

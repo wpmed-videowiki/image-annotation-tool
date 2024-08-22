@@ -1,12 +1,11 @@
 import { useEffect, useRef } from "react";
 import { whiteTheme } from "./white-theme";
-import {blackTheme} from './black-theme'
 import ImageEditorComp from "tui-image-editor";
 
 // default color red
 const DEFAULT_COLOR = "#ff4040";
 
-const ImageEditor = ({ image, instanceRef, aspectRatio }) => {
+const ImageEditor = ({ image, instanceRef, aspectRatio, id }) => {
   const containerRef = useRef(null);
   const containerWidth = useRef(null);
 
@@ -14,22 +13,30 @@ const ImageEditor = ({ image, instanceRef, aspectRatio }) => {
     if ((!instanceRef.current && image, containerRef.current)) {
       containerWidth.current =
         containerRef.current.getBoundingClientRect().width;
-      const instance = new ImageEditorComp(
-        document.querySelector("#tui-image-editor"),
-        {
-          usageStatistics: false,
-          includeUI: {
-            loadImage: {
-              path: image,
-              name: "SampleImage",
-            },
-            menuBarPosition: "bottom",
-            menu: ['icon', 'resize', 'crop', 'flip', 'rotate', 'draw', 'shape', 'text', 'mask', 'filter'],
-            // theme: theme.current === "black" ? blackTheme : whiteTheme,
-            theme: whiteTheme,
+      const instance = new ImageEditorComp(document.querySelector(`#${id}`), {
+        usageStatistics: false,
+        includeUI: {
+          loadImage: {
+            path: image,
+            name: "SampleImage",
           },
-        }
-      );
+          menuBarPosition: "bottom",
+          menu: [
+            "icon",
+            "resize",
+            "crop",
+            "flip",
+            "rotate",
+            "draw",
+            "shape",
+            "text",
+            "mask",
+            "filter",
+          ],
+          // theme: theme.current === "black" ? blackTheme : whiteTheme,
+          theme: whiteTheme,
+        },
+      });
       instanceRef.current = instance;
 
       // Work around for default color
@@ -82,10 +89,11 @@ const ImageEditor = ({ image, instanceRef, aspectRatio }) => {
       }
       editor.ui.activeMenuEvent();
     }
-  }, [image, instanceRef.current, containerRef.current]);
+  }, [image, instanceRef.current, containerRef.current, id]);
+
   return (
     <div ref={containerRef} style={{ height: "calc(100vh - 80px)" }}>
-      <div id="tui-image-editor"></div>;
+      <div id={id}></div>;
     </div>
   );
 };

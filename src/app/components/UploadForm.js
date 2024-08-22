@@ -67,11 +67,13 @@ const UploadForm = ({
   const fileTitleParts = title.split(".");
   fileTitleParts.pop();
   const tmpFileTitle = fileTitleParts.join(".") + "_annotated";
-  const fileExtension = title.split(".").pop();
+  const fileExtension = title.split(".").pop().toLowerCase();
 
   const [loading, setLoading] = useState(false);
   const [overwriteFile, setOverwriteFile] = useState(false);
-  const [selectedExtension, setSelectedExtension] = useState("png");
+  const [selectedExtension, setSelectedExtension] = useState(
+    fileExtension === "svg" ? "svg" : "png"
+  );
   const [fileTitle, setFileTitle] = useState(tmpFileTitle);
   const [debouncedFileTitle] = useDebounce(fileTitle, 500);
   const [uploadedUrl, setUploadedUrl] = useState("");
@@ -152,9 +154,8 @@ const UploadForm = ({
   useEffect(() => {
     if (!debouncedFileTitle) return;
     async function checkFileExists() {
-      const page = await fetchCommonsImage(
-        `File:${debouncedFileTitle}.${selectedExtension}`
-      );
+      const title = `File:${debouncedFileTitle}.${selectedExtension}`;
+      const page = await fetchCommonsImage(title);
       if (page && page.pageid) {
         setPageAlreadyExists(true);
       } else {
@@ -169,7 +170,10 @@ const UploadForm = ({
   }, [pageContent, overwriteFile]);
 
   useEffect(() => {
-    if (session?.user?.defaultUploadOption && SUPPORTED_OVERWRITE_EXTENSIONS.includes(fileExtension)) {
+    if (
+      session?.user?.defaultUploadOption &&
+      SUPPORTED_OVERWRITE_EXTENSIONS.includes(fileExtension)
+    ) {
       setOverwriteFile(session.user.defaultUploadOption === "overwrite");
     }
   }, [session?.user?.defaultUploadOption, fileExtension]);
@@ -298,9 +302,15 @@ const UploadForm = ({
                   value={selectedExtension}
                   onChange={(e) => setSelectedExtension(e.target.value)}
                 >
-                  <MenuItem value="png">.png</MenuItem>
-                  <MenuItem value="jpg">.jpg</MenuItem>
-                  <MenuItem value="jpeg">.jpeg</MenuItem>
+                  {fileExtension === "svg" ? (
+                    <MenuItem value="svg">.svg</MenuItem>
+                  ) : (
+                    <>
+                      <MenuItem value="png">.png</MenuItem>
+                      <MenuItem value="jpg">.jpg</MenuItem>
+                      <MenuItem value="jpeg">.jpeg</MenuItem>
+                    </>
+                  )}
                 </Select>
               ),
             }}
@@ -338,7 +348,6 @@ const UploadForm = ({
             size="small"
             multiline
             rows={10}
-            maxRows={10}
           />
         </Stack>
         <Stack spacing={1}>
@@ -358,7 +367,6 @@ const UploadForm = ({
             size="small"
             multiline
             rows={5}
-            maxRows={5}
           />
         </Stack>
         <Button

@@ -79,7 +79,6 @@ export async function getFileUsageOnWiki(
 
     result = await async.parallelLimit(funcArray, 10);
 
-    console.log({ wiki, fileName, cnt, level, continue: data.continue });
     if (data.continue && data.continue.continue) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       return result.concat(

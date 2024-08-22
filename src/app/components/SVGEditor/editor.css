@@ -1,0 +1,250 @@
+.OIe-editor {
+  font-size: 8pt;
+  font-family: Verdana, Helvetica, Arial;
+  color: #000000;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+.workarea {
+  position: relative;
+  top: 50px;
+  left: 50px;
+  height: calc(100% - 60px);
+  width: calc(100% - 52px);
+  background-color: #A0A0A0;
+  border: 1px solid #808080;
+  overflow: auto;
+  text-align: center;
+}
+.svgcanvas {
+  line-height: normal;
+  text-align: center;
+  vertical-align: middle;
+  width: 1920px;
+  height: 1440px;
+  position: relative;
+  top: 0;
+  left: 0;
+  /*
+    A subtle gradient effect in the canvas.
+    Just experimenting - not sure if this is worth it.
+  */
+  background: -moz-radial-gradient(45deg, #bbb, #222);
+  background: -webkit-gradient(radial, center center, 3, center center, 1000, from(#bbb), to(#222));
+}
+#svgroot {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+#canvasBackground > rect {
+  fill: #fff !important;
+}
+*:focus {
+  outline: none;
+}
+
+.OIe-attributes-tools {
+  position: absolute;
+  left: 300px;
+  display: inline-flex;
+  flex-flow: row wrap;
+  justify-content: flex-start;
+  align-items: center;
+  background-color: transparent;
+  width: 600px;
+  font-size: 10px;
+  font-size: 14px;
+}
+.OIe-attributes-tools > label {
+  margin-left: 10px;
+}
+.OIe-attributes-tools [name='tagName'] {
+  width: 40px;
+  height: 9px;
+  font-size: 14px;
+}
+.OIe-attributes-tools [name='id'] {
+  width: 80px;
+  height: 9px;
+  font-size: 14px;
+}
+.OIe-attributes-tools [name='x'],
+.OIe-attributes-tools [name='y'],
+.OIe-attributes-tools [name='cx'],
+.OIe-attributes-tools [name='cy'],
+.OIe-attributes-tools [name='rx'],
+.OIe-attributes-tools [name='ry'],
+.OIe-attributes-tools [name='r'],
+.OIe-attributes-tools [name='width'],
+.OIe-attributes-tools [name='height'],
+.OIe-attributes-tools [name='stroke'],
+.OIe-attributes-tools [name='stroke-width'] {
+  width: 35px;
+  height: 9px;
+  font-size: 14px;
+}
+.OIe-attributes-tools [name='font-size'] {
+  width: 40px;
+  height: 9px;
+  font-size: 14px;
+}
+.OIe-attributes-tools [name='font-family'] {
+  width: 90px;
+  height: 16px;
+  font-size: 14px;
+}
+.OIe-attributes-tools [name='d'] {
+  width: 120px;
+  height: 9px;
+  font-size: 14px;
+}
+
+.OIe-tools-icon {
+  /* width: 12px; */
+  width: 30px;
+}
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  position: relative;
+  border-right: none;
+  left: 0px;
+  top: 0px;
+  right: 0;
+  height: 70px;
+  padding-left: 50px;
+  z-index: 1;
+  background-color: #151515;
+  color: white;
+}
+.top-bar .canvas-mode {
+  position: absolute;
+  top: 0px;
+  left: 225px;
+}
+.top-bar .tag-name {
+  position: absolute;
+  bottom: 0px;
+  left: 225px;
+}
+.top-bar button {
+  border: 0px;
+  margin: 1px;
+  padding: 2px;
+  border-radius: 5px;
+  font-size: 0.5em;
+  color: white;
+  background-color: transparent;
+}
+.top-bar button:hover {
+  background-color: #1976d2;
+}
+.top-bar button.disabled {
+  color: lightgrey;
+}
+
+.left-bar {
+  position: absolute;
+  top: 0px;
+  right: 0;
+  left: 0;
+  bottom: 0;
+  height: calc(100% - 70px);
+  padding-top: 70px;
+  background-color: black;
+  border-color: #808080;
+  border-style: solid;
+  border-width: 0px;
+  border: none;
+  overflow-y: visible;
+  width: 50px;
+  color: white;
+  z-index: 1;
+}
+.left-bar button {
+  border: 0px;
+  margin: 1px;
+  padding: 2px;
+  border-radius: 5px;
+  font-size: 1em;
+  width: 100%;
+  /* width: 40px;
+  height: 30px; */
+  /* background-color: #1976d2; */
+  background-color: transparent;
+  color: white;
+}
+.left-bar button:hover,
+.left-bar button.selected {
+  /* background-color: #FFDB81; */
+  background-color: #1976d2;
+}
+
+.bottom-bar {
+  position: absolute;
+  display: flex;
+  border-right: none;
+  left: 50px;
+  bottom: 0;
+  right: 0;
+  height: 35px;
+  z-index: 1;
+  background-color: #151515;
+  color: white;
+  font-size: 0.5em;
+  justify-content: space-evenly;
+  align-items: center;
+}
+.bottom-bar .OIe-mode {
+  display: inline;
+}
+.bottom-bar select {
+  font-size: 1em;
+}
+.bottom-bar .OIe-context {
+  display: inline;
+}
+.bottom-bar .OIe-layer {
+  display: inline;
+}
+.bottom-bar .OIe-zoom {
+  position: relative;
+  width: 16px;
+  left: -1px;
+}
+
+div.OIe-tools-color {
+  font-size: 0.5em;
+  display: block;
+  text-align: center;
+  width: 40px;
+  height: 35px;
+}
+div.OIe-tools-color.button {
+  cursor: pointer;
+}
+.OIe-tools-color-sample {
+  width: 15px;
+  height: 15px;
+  text-align: center;
+  display: inline-block;
+  vertical-align: middle;
+  border: 1px solid white;
+}
+.OIe-tools-color-title {
+  width: 16px;
+  position: relative;
+  left: -1px;
+  top: 5px;
+}
+.OIe-tools-color-panel {
+  z-index: 10;
+  position: fixed;
+  bottom: 40px;
+}
+
