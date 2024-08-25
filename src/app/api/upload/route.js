@@ -36,6 +36,7 @@ export const POST = async (req, res) => {
 
   const fileStream = fs.createReadStream(fileLocation);
 
+  // return NextResponse.json({ filename, text, comment, provider });
   const response = await uploadFileToCommons(baseUrl, token, {
     filename,
     text,

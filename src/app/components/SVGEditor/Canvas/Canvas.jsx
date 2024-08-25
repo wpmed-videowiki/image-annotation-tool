@@ -1,5 +1,5 @@
 'use client'
-import React from 'react'
+import React, { useCallback } from 'react'
 import PropTypes from 'prop-types'
 import SvgCanvas from '@svgedit/svgcanvas'
 import svg from '../services/svg'
@@ -9,10 +9,11 @@ import LeftBar from './LeftBar/LeftBar.jsx'
 import BottomBar from './BottomBar/BottomBar.jsx'
 import updateCanvas from './editor/updateCanvas'
 import extArrows from '../extensions/ext-arrows/ext-arrows'
+import extCrop from '../extensions/ext-crop/ext-crop'
 
 import { canvasContext, CanvasContextProvider } from './Context/canvasContext.jsx'
 
-const Canvas = ({ svgContent, locale, svgUpdate, onClose, log }) => {
+const Canvas = ({ svgContent, locale, svgUpdate, onClose, log, onReset }) => {
   const textRef = React.useRef(null)
   const svgcanvasRef = React.useRef(null)
   const canvasRef = React.useRef(null)
@@ -33,6 +34,11 @@ const Canvas = ({ svgContent, locale, svgUpdate, onClose, log }) => {
       }
     }
   }
+  const updateCanvasCB = useCallback(() => {
+    updateCanvas(canvasRef.current, svgcanvasRef.current, config, true);
+
+    console.log('updateCanvasCB', canvasRef.current, svgcanvasRef.current, config, true)
+  }, [canvasRef.current, svgcanvasRef.current]);
 
   const selectedHandler = (win, elems) => {
     log('selectedHandler', elems)
@@ -55,8 +61,10 @@ const Canvas = ({ svgContent, locale, svgUpdate, onClose, log }) => {
   }
 
   const svgUpdateHandler = (svgString) => {
+    console.log('svgUpdateHandler', svgString)
     svgUpdate(svg.restoreOIAttr(svgString, oiAttributes.current))
     dispatchCanvasState({ type: 'updated', updated: false })
+    updateCanvasCB()
   }
 
   const onKeyUp = (event) => {
@@ -94,7 +102,9 @@ const Canvas = ({ svgContent, locale, svgUpdate, onClose, log }) => {
     const editorDom = svgcanvasRef.current
     const canvas = new SvgCanvas(editorDom, config)
     canvasRef.current = canvas
+    const updateCanvasCB = () => updateCanvas(canvas, svgcanvasRef.current, config, true);
     canvas.addExtension(extArrows.name, extArrows.init.bind(canvas), {})
+    canvas.addExtension(extCrop.name, extCrop.init({ updateCanvas: updateCanvasCB }).bind(canvas), {})
     updateCanvas(canvas, svgcanvasRef.current, config, true)
     canvas.textActions.setInputElem(textRef.current)
     Object.entries(eventList).forEach(([eventName, eventHandler]) => {
@@ -125,6 +135,7 @@ const Canvas = ({ svgContent, locale, svgUpdate, onClose, log }) => {
       <TopBar
         svgUpdate={svgUpdateHandler}
         onClose={onClose}
+        onReset={onReset}
       />
       <LeftBar />
       <BottomBar />

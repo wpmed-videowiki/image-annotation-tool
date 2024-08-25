@@ -73,6 +73,7 @@ const LeftBar = () => {
         ))}
       </Menu>
       <IconButton icon="Text" className={mode === 'text' ? 'selected' : ''} onClick={() => setMode('text')} />
+      <IconButton icon="Crop" className={mode === 'crop' ? 'selected' : ''} onClick={() => setMode('crop')} />
       <IconButton
         icon="Ellipse"
         className={mode === 'ellipse' ? 'selected' : ''}

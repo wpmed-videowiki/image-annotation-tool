@@ -13,7 +13,7 @@ import AttributesTools from './AttributesTools/AttributesTools.jsx'
 
 import { canvasContext } from '../Context/canvasContext.jsx'
 
-const TopBar = ({ svgUpdate, onClose }) => {
+const TopBar = ({ svgUpdate, onClose, onReset }) => {
   const [canvasState] = React.useContext(canvasContext)
   const { canvas, selectedElement, mode, updated } = canvasState
   console.info(mode, selectedElement?.tagName)
@@ -112,7 +112,7 @@ const TopBar = ({ svgUpdate, onClose }) => {
     case 'textPath':
     default:
       ElementTools = selectedElement && (
-        <AttributesTools selectedElement={selectedElement} handleChange={handleChange} attributes={{'stroke-width': 'text'}} />
+        <AttributesTools selectedElement={selectedElement} handleChange={handleChange} attributes={{ 'stroke-width': 'text' }} />
       )
   }
   return (
@@ -124,7 +124,7 @@ const TopBar = ({ svgUpdate, onClose }) => {
         svgUpdate={svgUpdate}
         onClose={onClose}
       />
-      <DelDupTools canvas={canvas} />
+      <DelDupTools canvas={canvas} onReset={onReset} />
       <GroupTools canvas={canvas} multiselected={canvasState.multiselected} selectedElement={selectedElement} />
       {ElementTools && ElementTools}
     </div>

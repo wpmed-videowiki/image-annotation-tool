@@ -34,7 +34,9 @@ const fontSize = '/images/icons/fontsize.svg'
 const noColor = '/images/icons/no_color.svg'
 const zoom = '/images/icons/zoom.svg'
 const close = '/images/icons/close.svg'
+const reset = '/images/icons/close.svg'
 const arrow = '/images/icons/arrow.svg'
+const crop = '/images/icons/scissors.svg'
 
 const Icon = ({ name, ...otherProps }) => {
   switch (name) {
@@ -60,6 +62,8 @@ const Icon = ({ name, ...otherProps }) => {
       return <Image width={50} height={50}  src={rect} alt="rect" {...otherProps} />
     case 'Close':
       return <Image width={50} height={50}  src={close} alt="close" {...otherProps} />
+    case 'Reset':
+      return <Image width={50} height={50}  src={reset} alt="reset" {...otherProps} />
     case 'Save':
       return <Image width={50} height={50}  src={save} alt="save" {...otherProps} />
     case 'Undo':
@@ -104,6 +108,8 @@ const Icon = ({ name, ...otherProps }) => {
       return <Image width={50} height={50}  src={zoom} alt="group" {...otherProps} />
     case 'Arrow':
       return <Image width={50} height={50}  src={arrow} alt="Arrow" {...otherProps} />
+    case 'Crop':
+      return <Image width={50} height={50}  src={crop} alt="Crop" {...otherProps} />
     default:
       return <Image width={50} height={50}  src={group} alt="group" {...otherProps} />
   }

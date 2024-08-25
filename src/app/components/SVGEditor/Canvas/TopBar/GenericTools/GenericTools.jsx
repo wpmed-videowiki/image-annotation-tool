@@ -3,13 +3,15 @@ import PropTypes from 'prop-types'
 
 import IconButton from '../../IconButton/IconButton.jsx'
 
-const GenericTools = ({ canvas, canvasUpdated, svgUpdate, onClose }) => {
+const GenericTools = ({ canvas, canvasUpdated, svgUpdate, onClose, onReset }) => {
   const onClickUndo = () => {
     canvas.undoMgr.undo()
     // populateLayers()
+    svgUpdate()
   }
   const onClickRedo = () => {
     canvas.undoMgr.redo()
+    svgUpdate()
     // populateLayers()
   }
   const onClickClose = () => {

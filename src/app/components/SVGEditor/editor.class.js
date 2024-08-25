@@ -5,7 +5,7 @@ SVG-Edit-react
 import React from "react";
 import ReactDOM from "react-dom/client";
 import Canvas from "./Canvas/Canvas.jsx";
-import './editor.css';
+import "./editor.css";
 
 const VERSION = 1;
 
@@ -23,8 +23,9 @@ class Editor {
     /** @private the div that holds the whole thing */
     this.div = div;
     this.root = ReactDOM.createRoot(this.div);
+    this.loadedSvgContent = "";
     this.config = {
-      debug: process.env.NODE_ENV !== "production",
+      debug: false,
       i18n: "en",
       saveHandler: null,
       onCloseHandler: null,
@@ -81,14 +82,24 @@ class Editor {
             svgUpdate: this.svgUpdate,
             onClose: this.onClose,
             log: this.logDebugData,
+            onReset: this.onReset,
           },
           null
         )
       );
+      this.loadedSvgContent = svgContent;
     } catch (err) {
       console.error("could not load the SVG content", err);
       throw err;
     }
+  }
+
+  onReset = () => {
+    this.logDebugData("onReset");
+    console.log(this.root)
+    this.root.unmount();
+    this.root = ReactDOM.createRoot(this.div);
+    this.load(this.loadedSvgContent);
   }
 
   /**
