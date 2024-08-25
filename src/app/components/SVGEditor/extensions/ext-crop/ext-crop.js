@@ -99,6 +99,10 @@ export default {
             const el = document.createElement("div");
             el.innerHTML = canv.svgCanvasToString();
             const svg = el.childNodes[0];
+            // Remove cropRectOverlay
+            const cropRectOverlay = svg.querySelector(`#${cropRectOverlayId}`);
+            cropRectOverlay.parentElement.removeChild(cropRectOverlay);
+
             svg.setAttribute(
               "viewBox",
               `${lastBBox.x} ${lastBBox.y} ${lastBBox.width} ${lastBBox.height}`
