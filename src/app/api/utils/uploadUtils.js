@@ -8,11 +8,12 @@ const request = rawRequest.defaults({
 });
 
 export const fetchCSRFToken = async (baseUrl, token) => {
-  const url = `${baseUrl}/w/api.php?action=query&meta=tokens&type=csrf&format=json`;
+  const url = `${baseUrl}?action=query&meta=tokens&type=csrf&format=json`;
   const data = await fetch(url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
+      "User-Agent": process.env.USER_AGENT,
     },
   });
 
@@ -39,6 +40,7 @@ export const updateArticleText = async (baseUrl, token, { title, text }) => {
         },
         headers: {
           Authorization: `Bearer ${token}`,
+          "User-Agent": process.env.USER_AGENT,
         },
       },
       (err, res, body) => {
@@ -80,10 +82,11 @@ export const uploadFileToCommons = async (
             text: text,
             token: csrfToken,
             file,
-            comment: comment || '',
+            comment: comment || "",
           },
           headers: {
             Authorization: `Bearer ${token}`,
+            "User-Agent": process.env.USER_AGENT,
           },
         },
         (err, res, body) => {

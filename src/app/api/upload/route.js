@@ -28,12 +28,13 @@ export const POST = async (req, res) => {
   console.log({ fileLocation, filename, text, provider });
   console.log({ fileBuffer });
   await fs.promises.writeFile(fileLocation, fileBuffer);
+  // wait 500ms
+  await new Promise((resolve) => setTimeout(resolve, 200));
 
   const baseUrl =
     provider === "nccommons" ? NCCOMMONS_BASE_URL : COMMONS_BASE_URL;
   const token =
     provider === "nccommons" ? user.nccommonsToken : user.wikimediaToken;
-
   const fileStream = fs.createReadStream(fileLocation);
 
   // return NextResponse.json({ filename, text, comment, provider });

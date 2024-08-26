@@ -297,22 +297,28 @@ const UploadForm = ({
                 paddingRight: 0,
               },
               startAdornment: "File:",
-              endAdornment: (
-                <Select
-                  value={selectedExtension}
-                  onChange={(e) => setSelectedExtension(e.target.value)}
-                >
-                  {fileExtension === "svg" ? (
+              endAdornment:
+                fileExtension === "svg" ? (
+                  <Select
+                    value={selectedExtension}
+                    onChange={(e) => setSelectedExtension(e.target.value)}
+                  >
                     <MenuItem value="svg">.svg</MenuItem>
-                  ) : (
-                    <>
-                      <MenuItem value="png">.png</MenuItem>
-                      <MenuItem value="jpg">.jpg</MenuItem>
-                      <MenuItem value="jpeg">.jpeg</MenuItem>
-                    </>
-                  )}
-                </Select>
-              ),
+                    <MenuItem value="png">.png</MenuItem>
+                    <MenuItem value="jpg">.jpg</MenuItem>
+                    <MenuItem value="jpeg">.jpeg</MenuItem>
+                  </Select>
+                ) : (
+                  <Select
+                    value={selectedExtension}
+                    onChange={(e) => setSelectedExtension(e.target.value)}
+                  >
+                    <MenuItem value="svg">.svg</MenuItem>
+                    <MenuItem value="png">.png</MenuItem>
+                    <MenuItem value="jpg">.jpg</MenuItem>
+                    <MenuItem value="jpeg">.jpeg</MenuItem>
+                  </Select>
+                ),
             }}
           />
           {pageAlreadyExists && (
