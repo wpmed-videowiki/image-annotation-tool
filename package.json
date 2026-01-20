@@ -24,19 +24,28 @@
     "next-auth": "^4.24.7",
     "next-intl": "^3.15.2",
     "node-fetch": "^2.7.0",
+    "postcss": "^8",
     "react": "^18",
     "react-color": "^2.19.3",
     "react-dom": "^18",
     "react-toastify": "^10.0.5",
+    "tailwindcss": "^3.4.1",
     "tui-image-editor": "^3.7.2",
     "url-loader": "^4.1.1",
-    "use-debounce": "^10.0.0",
-    "postcss": "^8",
-    "tailwindcss": "^3.4.1"
+    "use-debounce": "^10.0.0"
   },
   "devDependencies": {
     "@types/node": "20.12.12",
     "eslint": "^8",
-    "eslint-config-next": "14.2.35"
+    "eslint-config-next": "^14.2.35"
+  },
+  "overrides": {
+    "tui-image-editor": {
+      "fabric": "^5.3.0",
+      "jsdom": "^24.0.0"
+    },
+    "form-data": "^4.0.0",
+    "qs": "^6.14.1",
+    "tough-cookie": "^4.1.3"
   }
 }
