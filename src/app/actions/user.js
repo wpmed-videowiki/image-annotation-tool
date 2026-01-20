@@ -6,7 +6,7 @@ import UserModel from "../models/User";
 export async function updateUserDefaultUploadOption(
   defaultUploadOption = "new"
 ) {
-  const userId = cookies().get("app-user-id");
+  const userId = (await cookies()).get("app-user-id");
   if (userId?.value) {
     await UserModel.findByIdAndUpdate(
       userId.value,

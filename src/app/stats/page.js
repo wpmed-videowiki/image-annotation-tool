@@ -2,7 +2,7 @@ import {
   Card,
   CardContent,
   Container,
-  Grid,
+  GridLegacy as Grid,
   Paper,
   Stack,
   Table,
@@ -17,7 +17,8 @@ import FileRow from "../components/stats/FileRow";
 
 const MIN_ROWS = 12;
 
-const StatsPage = async ({ searchParams }) => {
+const StatsPage = async props => {
+  const searchParams = await props.searchParams;
   const [stats, totalUsers] = await Promise.all([
     getStats(searchParams.page ? parseInt(searchParams.page) : 1),
     getTotalUsers(),
