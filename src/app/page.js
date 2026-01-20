@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Stack, Grid, Container } from "@mui/material";
+import { Stack, GridLegacy as Grid, Container } from "@mui/material";
 import { useSearchParams } from "next/navigation";
 import { fetchCommonsImage, fetchPageSource } from "./actions/commons";
 import {

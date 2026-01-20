@@ -1,6 +1,10 @@
 {
   "compilerOptions": {
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": false,
@@ -16,7 +20,8 @@
       {
         "name": "next"
       }
-    ]
+    ],
+    "target": "ES2017"
   },
   "include": [
     "next-env.d.ts",
@@ -25,7 +30,10 @@
     "**/*.tsx",
     "src/navigation.js",
     "src/middleware.js",
-    "src/i18n.js"
-, "src/app/config/constants.js"  ],
-  "exclude": ["node_modules"]
+    "src/i18n.js",
+    "src/app/config/constants.js"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

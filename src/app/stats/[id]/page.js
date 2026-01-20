@@ -1,5 +1,5 @@
 import {
-  Grid,
+  GridLegacy as Grid,
   Container,
   Stack,
   IconButton,
@@ -23,7 +23,8 @@ import { notFound } from "next/navigation";
 import { ArrowBack, OpenInNew } from "@mui/icons-material";
 import Link from "next/link";
 
-const FileStatsPage = async ({ params }) => {
+const FileStatsPage = async props => {
+  const params = await props.params;
   const upload = await getFileUploadById(params.id);
 
   if (!upload) {

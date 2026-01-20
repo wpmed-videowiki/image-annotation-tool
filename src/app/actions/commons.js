@@ -86,7 +86,7 @@ export const fetchPageSource = async (wikiSource) => {
 export const updatePageSource = async (wikiSource, text) => {
   await connectDB();
 
-  const appUserId = cookies().get("app-user-id")?.value;
+  const appUserId = (await cookies()).get("app-user-id")?.value;
   const user = await UserModel.findById(appUserId);
 
   const baseUrl = `${wikiSource.split("/wiki/")[0]}/w/api.php`;

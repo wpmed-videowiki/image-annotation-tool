@@ -6,7 +6,7 @@ import UserModel from "../models/User";
 
 export const getAppUser = async () => {
   await connectDB();
-  const userId = cookies().get("app-user-id");
+  const userId = (await cookies()).get("app-user-id");
   if (userId) {
     const user = await UserModel.findById(userId.value);
     if (user) {
@@ -14,7 +14,7 @@ export const getAppUser = async () => {
     }
   }
   const user = await UserModel.create({});
-  cookies().set("app-user-id", user._id, {
+  (await cookies()).set("app-user-id", user._id, {
     maxAge: 60 * 60 * 24 * 365,
     path: "/",
   });
@@ -24,7 +24,7 @@ export const getAppUser = async () => {
 
 export const logoutPlatform = async (platform) => {
   await connectDB();
-  const userId = cookies().get("app-user-id");
+  const userId = (await cookies()).get("app-user-id");
   if (userId) {
     const user = await UserModel.findById(userId.value);
     if (user) {
