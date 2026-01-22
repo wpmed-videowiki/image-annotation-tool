@@ -15,17 +15,8 @@ const getFetchImageUrl = (baseUrl, fileName) =>
 export const fetchCommonsImage = async (fileName) => {
   let infoUrl = getFetchImageUrl(COMMONS_BASE_URL, fileName);
 
-  let response = await fetch(infoUrl, {
-    headers: {
-      "User-Agent": process.env.USER_AGENT,
-    },
-  });
-  let data = await response.json();
-  let pages = data.query.pages;
-  let page = pages[0];
-  page.wikiSource = COMMONS_BASE_URL.split("/w/api.php")[0];
-  if (page.missing) {
-    infoUrl = getFetchImageUrl(NCCOMMONS_BASE_URL, fileName);
+  let response, page, pages, data;
+  try {
     response = await fetch(infoUrl, {
       headers: {
         "User-Agent": process.env.USER_AGENT,
@@ -34,9 +25,30 @@ export const fetchCommonsImage = async (fileName) => {
     data = await response.json();
     pages = data.query.pages;
     page = pages[0];
-    page.wikiSource = NCCOMMONS_BASE_URL.split("/w/api.php")[0];
-    if (page.missing) {
-      return null;
+    page.wikiSource = COMMONS_BASE_URL.split("/w/api.php")[0];
+
+  } catch (err) {
+    console.log(err);
+  }
+
+  if (!page || page.missing) {
+    infoUrl = getFetchImageUrl(NCCOMMONS_BASE_URL, fileName);
+    try {
+      response = await fetch(infoUrl, {
+        headers: {
+          "User-Agent": process.env.USER_AGENT,
+        },
+      });
+      data = await response.json();
+      pages = data.query.pages;
+      page = pages[0];
+      page.wikiSource = NCCOMMONS_BASE_URL.split("/w/api.php")[0];
+      if (page.missing) {
+        return null;
+      }
+    } catch (err) {
+      console.log(err);
+      return null
     }
   }
 
