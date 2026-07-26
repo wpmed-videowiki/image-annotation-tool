@@ -55,6 +55,42 @@ function applyEffect(source, { effect, strength }) {
   return out;
 }
 
+function makeSnapshot(patch) {
+  return {
+    element: patch._element,
+    left: patch.left,
+    top: patch.top,
+    width: patch.width,
+    height: patch.height,
+    hasClip: !!patch.clipPath,
+    blurSettings: { ...patch.blurSettings },
+  };
+}
+
+function applySnapshot(canvas, patch, snap) {
+  patch.setElement(snap.element);
+  patch.set({
+    left: snap.left,
+    top: snap.top,
+    width: snap.width,
+    height: snap.height,
+    scaleX: 1,
+    scaleY: 1,
+  });
+  patch.blurSettings = { ...snap.blurSettings };
+  if (snap.hasClip) {
+    patch.clipPath = new fabric.Ellipse({
+      rx: snap.width / 2,
+      ry: snap.height / 2,
+      originX: "center",
+      originY: "center",
+    });
+  }
+  patch.dirty = true;
+  patch.setCoords();
+  canvas.renderAll();
+}
+
 function generatePatchPixels(canvas, rect, settings, excludeObjects) {
   excludeObjects.forEach((o) => (o.visible = false));
   try {
@@ -136,6 +172,11 @@ export default function initBlurTool(editor) {
     </label>`;
   container.appendChild(panel);
 
+  // One undo entry per slider drag, not per input tick: live-refresh on
+  // "input", capture the pre-drag snapshot lazily, push the command on
+  // "change" (fires once on release).
+  let sliderBaseline = null;
+
   function onSettingsChange(changedKey) {
     if (changedKey === "shape") return; // shape applies to new patches only
     const obj = canvas.getActiveObject();
@@ -145,7 +186,14 @@ export default function initBlurTool(editor) {
         effect: state.settings.effect,
         strength: state.settings.strength,
       };
-      refreshPatch(obj);
+      if (changedKey === "strength") {
+        if (!sliderBaseline) {
+          sliderBaseline = { patch: obj, snap: obj.__blurSnapshot };
+        }
+        refreshPatch(obj);
+      } else {
+        refreshPatchWithUndo(obj);
+      }
     }
   }
 
@@ -166,6 +214,24 @@ export default function initBlurTool(editor) {
     state.settings.strength = Number(slider.value);
     panel.querySelector(".blur-tool-strength-value").textContent = slider.value;
     onSettingsChange("strength");
+  });
+  slider.addEventListener("change", () => {
+    const obj = canvas.getActiveObject();
+    if (
+      sliderBaseline &&
+      obj &&
+      obj.isBlurPatch &&
+      sliderBaseline.patch === obj
+    ) {
+      const before = sliderBaseline.snap;
+      const after = obj.__blurSnapshot;
+      pushCommand(
+        "blurPatchModify",
+        () => applySnapshot(canvas, obj, after),
+        () => applySnapshot(canvas, obj, before)
+      );
+    }
+    sliderBaseline = null;
   });
 
   // --- Mode toggle ---
@@ -206,6 +272,32 @@ export default function initBlurTool(editor) {
     canvas.renderAll();
   }
 
+  // Hand-crafted commands pushed through tui's invoker so the editor's own
+  // Undo/Redo buttons handle blur patches. The invoker calls execute() on
+  // redo and undo() on undo, both must return promises.
+  function pushCommand(name, executeFn, undoFn) {
+    editor._invoker.pushUndoStack({
+      name,
+      args: [],
+      undoData: {},
+      executeCallback: null,
+      undoCallback: null,
+      execute: () => Promise.resolve().then(executeFn),
+      undo: () => Promise.resolve().then(undoFn),
+    });
+    // invoker.execute() clears the redo stack for native commands; our
+    // pushUndoStack bypasses that, so clear it explicitly.
+    editor.clearRedoStack();
+  }
+
+  function removePatch(patch) {
+    if (canvas.getActiveObject() === patch) {
+      canvas.discardActiveObject();
+    }
+    canvas.remove(patch);
+    canvas.renderAll();
+  }
+
   function createPatch(rect, settings) {
     const pixels = generatePatchPixels(canvas, rect, settings, []);
     const patch = new fabric.Image(pixels, {
@@ -228,6 +320,16 @@ export default function initBlurTool(editor) {
     }
     canvas.add(patch);
     canvas.renderAll();
+    patch.__blurSnapshot = makeSnapshot(patch);
+    const snap = patch.__blurSnapshot;
+    pushCommand(
+      "blurPatchAdd",
+      () => {
+        canvas.add(patch);
+        applySnapshot(canvas, patch, snap);
+      },
+      () => removePatch(patch)
+    );
     return patch;
   }
 
@@ -265,9 +367,24 @@ export default function initBlurTool(editor) {
       patch.dirty = true;
       patch.setCoords();
       canvas.renderAll();
+      patch.__blurSnapshot = makeSnapshot(patch);
+      return true;
     } catch (err) {
       // Never silently drop a redaction — keep the existing patch on failure.
       console.error("Blur patch refresh failed", err);
+      return false;
+    }
+  }
+
+  function refreshPatchWithUndo(patch) {
+    const before = patch.__blurSnapshot;
+    if (refreshPatch(patch)) {
+      const after = patch.__blurSnapshot;
+      pushCommand(
+        "blurPatchModify",
+        () => applySnapshot(canvas, patch, after),
+        () => applySnapshot(canvas, patch, before)
+      );
     }
   }
 
@@ -332,7 +449,7 @@ export default function initBlurTool(editor) {
   canvas.on("object:modified", (opt) => {
     const obj = opt.target;
     if (obj && obj.isBlurPatch) {
-      refreshPatch(obj);
+      refreshPatchWithUndo(obj);
     }
   });
 
@@ -347,8 +464,16 @@ export default function initBlurTool(editor) {
     }
     const obj = canvas.getActiveObject();
     if (obj && obj.isBlurPatch) {
-      canvas.remove(obj);
-      canvas.renderAll();
+      const snap = obj.__blurSnapshot;
+      removePatch(obj);
+      pushCommand(
+        "blurPatchRemove",
+        () => removePatch(obj),
+        () => {
+          canvas.add(obj);
+          applySnapshot(canvas, obj, snap);
+        }
+      );
       e.preventDefault();
     }
   };
