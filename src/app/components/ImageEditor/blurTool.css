@@ -1,0 +1,54 @@
+.tie-btn-blurTool .blur-tool-icon path {
+  stroke: #8a8a8a;
+}
+.tie-btn-blurTool:hover .blur-tool-icon path,
+.tie-btn-blurTool.active .blur-tool-icon path {
+  stroke: #555555;
+}
+
+.blur-tool-panel {
+  display: none;
+  position: absolute;
+  bottom: 160px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  background: #fff;
+  border: 1px solid #d5d5d5;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-size: 13px;
+  color: #333;
+}
+.blur-tool-panel.visible {
+  display: flex;
+}
+.blur-tool-group {
+  display: flex;
+  gap: 4px;
+}
+.blur-tool-group button {
+  padding: 4px 10px;
+  border: 1px solid #d5d5d5;
+  border-radius: 3px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 12px;
+}
+.blur-tool-group button.selected {
+  background: #ff4040;
+  border-color: #ff4040;
+  color: #fff;
+}
+.blur-tool-strength {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.blur-tool-strength-value {
+  min-width: 16px;
+  text-align: center;
+}
