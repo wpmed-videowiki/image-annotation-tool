@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import { whiteTheme } from "./white-theme";
 import ImageEditorComp from "tui-image-editor";
+import initBlurTool from "./blurTool";
+import "./blurTool.css";
 
 // default color red
 const DEFAULT_COLOR = "#ff4040";
@@ -88,6 +90,7 @@ const ImageEditor = ({ image, instanceRef, aspectRatio, id }) => {
         console.error(err);
       }
       editor.ui.activeMenuEvent();
+      initBlurTool(editor);
     }
   }, [image, instanceRef.current, containerRef.current, id]);
 
