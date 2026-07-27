@@ -6,20 +6,23 @@
   stroke: #555555;
 }
 
-.blur-tool-panel {
+/* A full-width bar flush above the 64px menu bar, like the native tui
+   submenus. Scoped under the container to out-rank tui's `div { padding: 0 }`
+   reset; controls wrap on narrow screens instead of overflowing. */
+.tui-image-editor-container .blur-tool-panel {
   display: none;
   position: absolute;
-  bottom: 160px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  bottom: 64px;
   z-index: 2;
   align-items: center;
-  gap: 16px;
-  padding: 10px 16px;
-  background: #fff;
-  border: 1px solid #d5d5d5;
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.95);
+  border-top: 1px solid #d5d5d5;
   font-size: 13px;
   color: #333;
 }

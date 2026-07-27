@@ -45,3 +45,20 @@ a {
 .tui-image-editor-menu {
   overflow: unset !important;
 }
+
+@media (max-width: 768px) {
+  /* display: table lets the bar expand past the container; block keeps it at 100% */
+  .tui-image-editor-container .tui-image-editor-controls {
+    display: block !important;
+  }
+  .tui-image-editor-container .tui-image-editor-controls .tui-image-editor-menu {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    height: 100%;
+    max-width: 100%;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch;
+  }
+}
