@@ -1,0 +1,15 @@
+# Video worker image: the only container that needs ffmpeg/ffprobe.
+# Runs src/workers/videoWorker.mjs directly with Node - no Next build.
+FROM node:22.21.1-slim
+WORKDIR /app
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ffmpeg \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY package*.json ./
+RUN npm install --omit=dev
+
+COPY . .
+
+CMD ["npm", "run", "start:worker:video"]

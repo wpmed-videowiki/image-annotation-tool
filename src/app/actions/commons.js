@@ -55,6 +55,28 @@ export const fetchCommonsImage = async (fileName) => {
   return page;
 };
 
+// TimedMediaHandler's browser-playable transcodes of a video (Commons
+// serves e.g. Theora .ogv originals as VP9 WebM derivatives, which is what
+// its own player uses). Returns [] when unavailable (e.g. NC Commons).
+export const fetchVideoDerivatives = async (fileName, wikiSource) => {
+  const base = wikiSource || "https://commons.wikimedia.org";
+  const url = `${base}/w/api.php?action=query&titles=${encodeURIComponent(
+    fileName
+  )}&prop=videoinfo&viprop=derivatives&format=json&formatversion=2`;
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": process.env.USER_AGENT,
+      },
+    });
+    const data = await response.json();
+    return data?.query?.pages?.[0]?.videoinfo?.[0]?.derivatives || [];
+  } catch (err) {
+    console.log(err);
+    return [];
+  }
+};
+
 export const searchCommonsImages = async (search) => {
   if (!search) return [];
   if (search.includes("https://") && search.includes("/wiki/")) {
