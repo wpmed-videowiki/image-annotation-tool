@@ -1,6 +1,7 @@
 "use client";
 import {
   Button,
+  LinearProgress,
   MenuItem,
   Radio,
   RadioGroup,
@@ -10,7 +11,7 @@ import {
   Typography,
 } from "@mui/material";
 import { fetchCommonsImage, uploadFile } from "../actions/commons";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { UploadFile } from "@mui/icons-material";
 import { useSession } from "next-auth/react";
 import { popupCenter } from "../utils/popupTools";
@@ -18,8 +19,12 @@ import { toast } from "react-toastify";
 import { base64ToBlob } from "../utils/base64ToBlob";
 import { useDebounce } from "use-debounce";
 import { useTranslations } from "next-intl";
-import { SUPPORTED_OVERWRITE_EXTENSIONS } from "../config/constants";
+import {
+  SUPPORTED_OVERWRITE_EXTENSIONS,
+  VIDEO_SERVER_CHUNK_BYTES,
+} from "../config/constants";
 import { updateUserDefaultUploadOption } from "../actions/user";
+import { createVideoJob, getVideoJobStatus } from "../actions/video";
 import UpdateArticleSourceForm from "./UpdateArticleSourceForm";
 
 const getWikiPageText = ({
@@ -60,20 +65,27 @@ const UploadForm = ({
   editorRef,
   pageContent,
   author,
+  isVideo,
+  isDeviceVideo,
 }) => {
   const { data: session } = useSession();
   const t = useTranslations();
 
   const fileTitleParts = title.split(".");
   fileTitleParts.pop();
-  const tmpFileTitle = fileTitleParts.join(".") + "_annotated";
+  const tmpFileTitle = isDeviceVideo
+    ? fileTitleParts.join(".")
+    : fileTitleParts.join(".") + "_annotated";
   const fileExtension = title.split(".").pop().toLowerCase();
 
   const [loading, setLoading] = useState(false);
   const [overwriteFile, setOverwriteFile] = useState(false);
   const [selectedExtension, setSelectedExtension] = useState(
-    fileExtension === "svg" ? "svg" : "png"
+    isVideo ? "webm" : fileExtension === "svg" ? "svg" : "png"
   );
+  const [videoStage, setVideoStage] = useState("");
+  const [videoProgress, setVideoProgress] = useState(0);
+  const pollRef = useRef(null);
   const [fileTitle, setFileTitle] = useState(tmpFileTitle);
   const [debouncedFileTitle] = useDebounce(fileTitle, 500);
   const [uploadedUrl, setUploadedUrl] = useState("");
@@ -85,6 +97,25 @@ const UploadForm = ({
   const resetPageText = () => {
     if (pageContent && overwriteFile) {
       setText(pageContent);
+      return;
+    }
+
+    if (isDeviceVideo) {
+      const username =
+        session?.user?.wikimediaProfile?.username ||
+        session?.user?.wikimediaProfile?.name ||
+        "";
+      setText(
+        getWikiPageText({
+          description: `${fileTitle}. Uploaded by [https://image-annotation-tool.wmcloud.org/ Image Annotation Tool].`,
+          date: new Date().toISOString().split("T")[0],
+          source: "{{own}}",
+          author: username ? `[[User:${username}|${username}]]` : "",
+          license: license || "self|cc-by-sa-4.0",
+          permission: permission || "",
+          categories,
+        })
+      );
       return;
     }
 
@@ -102,7 +133,146 @@ const UploadForm = ({
     );
   };
 
+  const uploadDeviceFileToServer = async (file, onProgress) => {
+    const totalChunks = Math.ceil(file.size / VIDEO_SERVER_CHUNK_BYTES) || 1;
+    let uploadId = "";
+    let lastResponse = null;
+    for (let i = 0; i < totalChunks; i++) {
+      const chunk = file.slice(
+        i * VIDEO_SERVER_CHUNK_BYTES,
+        (i + 1) * VIDEO_SERVER_CHUNK_BYTES
+      );
+      let attempt = 0;
+      for (;;) {
+        const response = await fetch("/api/video/upload-chunk", {
+          method: "POST",
+          body: chunk,
+          headers: {
+            "content-type": "application/octet-stream",
+            "x-chunk-index": String(i),
+            "x-total-chunks": String(totalChunks),
+            "x-total-bytes": String(file.size),
+            "x-file-name": encodeURIComponent(file.name),
+            ...(uploadId ? { "x-upload-id": uploadId } : {}),
+          },
+        });
+        if (response.ok) {
+          lastResponse = await response.json();
+          uploadId = lastResponse.uploadId;
+          break;
+        }
+        attempt += 1;
+        if (attempt >= 3) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || "Failed to upload video to the server");
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+      }
+      onProgress(((i + 1) / totalChunks) * 100);
+    }
+    return lastResponse;
+  };
+
+  const destinationName =
+    provider === "nccommons" ? "NC Commons" : "Wikimedia Commons";
+
+  const pollVideoJob = (jobId) => {
+    pollRef.current = setInterval(async () => {
+      try {
+        const status = await getVideoJobStatus(jobId);
+        if (!status) return;
+        setVideoProgress(status.progress || 0);
+        if (
+          ["queued", "downloading", "processing", "uploading", "publishing"].includes(
+            status.status
+          )
+        ) {
+          setVideoStage(
+            t(`UploadForm_video_stage_${status.status}`, {
+              destination: destinationName,
+            })
+          );
+        }
+        if (status.status === "done") {
+          clearInterval(pollRef.current);
+          setVideoStage("");
+          setUploadedUrl(status.result?.descriptionurl || "");
+          toast.success("File uploaded successfully");
+          setLoading(false);
+        } else if (status.status === "error") {
+          clearInterval(pollRef.current);
+          setVideoStage("");
+          toast.error(status.error || t("UploadForm_video_job_failed"));
+          setLoading(false);
+        }
+      } catch (err) {
+        console.log(err);
+      }
+    }, 2000);
+  };
+
+  useEffect(() => () => clearInterval(pollRef.current), []);
+
+  useEffect(() => {
+    if (!loading || !isVideo) return;
+    const handler = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [loading, isVideo]);
+
+  const onUploadVideo = async () => {
+    setLoading(true);
+    setVideoProgress(0);
+    try {
+      const videoData = editorRef.current.getVideoData();
+      const filename = overwriteFile
+        ? `File:${title}`
+        : `File:${fileTitle}.webm`.trim();
+      let deviceUploadId = "";
+      if (videoData.sourceType === "device") {
+        setVideoStage(t("UploadForm_video_stage_uploading_to_server"));
+        const uploadResponse = await uploadDeviceFileToServer(
+          videoData.deviceFile,
+          setVideoProgress
+        );
+        deviceUploadId = uploadResponse.uploadId;
+      }
+      setVideoStage(
+        t("UploadForm_video_stage_queued", { destination: destinationName })
+      );
+      setVideoProgress(0);
+      const jobResponse = await createVideoJob({
+        sourceType: videoData.sourceType,
+        sourceUrl: videoData.sourceUrl || "",
+        deviceUploadId,
+        ops: videoData.ops,
+        target: {
+          filename,
+          text,
+          comment: uploadComment.trim(),
+          provider,
+          wikiSource: wikiSource || "",
+        },
+      });
+      if (jobResponse?.error || !jobResponse?.jobId) {
+        throw new Error(jobResponse?.error || t("UploadForm_video_job_failed"));
+      }
+      pollVideoJob(jobResponse.jobId);
+    } catch (err) {
+      console.log(err);
+      toast.error(err.message || t("UploadForm_video_job_failed"));
+      setVideoStage("");
+      setLoading(false);
+    }
+  };
+
   const onUpload = async () => {
+    if (editorRef.current?.isVideo) {
+      return onUploadVideo();
+    }
     setLoading(true);
     const dataUrl = await editorRef.current.toDataURL({
       format: overwriteFile
@@ -167,16 +337,17 @@ const UploadForm = ({
 
   useEffect(() => {
     resetPageText();
-  }, [pageContent, overwriteFile]);
+  }, [pageContent, overwriteFile, session?.user?.wikimediaProfile]);
 
   useEffect(() => {
     if (
+      !isDeviceVideo &&
       session?.user?.defaultUploadOption &&
       SUPPORTED_OVERWRITE_EXTENSIONS.includes(fileExtension)
     ) {
       setOverwriteFile(session.user.defaultUploadOption === "overwrite");
     }
-  }, [session?.user?.defaultUploadOption, fileExtension]);
+  }, [session?.user?.defaultUploadOption, fileExtension, isDeviceVideo]);
 
   switch (provider) {
     case "commons":
@@ -262,7 +433,7 @@ const UploadForm = ({
         onChange={(e) => onOverwriteFileChange(e.target.value === "true")}
       >
         <Stack direction="row" spacing={2}>
-          {SUPPORTED_OVERWRITE_EXTENSIONS.includes(fileExtension) && (
+          {!isDeviceVideo && SUPPORTED_OVERWRITE_EXTENSIONS.includes(fileExtension) && (
             <Stack
               direction="row"
               alignItems="center"
@@ -297,28 +468,24 @@ const UploadForm = ({
                 paddingRight: 0,
               },
               startAdornment: "File:",
-              endAdornment:
-                fileExtension === "svg" ? (
-                  <Select
-                    value={selectedExtension}
-                    onChange={(e) => setSelectedExtension(e.target.value)}
-                  >
-                    <MenuItem value="svg">.svg</MenuItem>
-                    <MenuItem value="png">.png</MenuItem>
-                    <MenuItem value="jpg">.jpg</MenuItem>
-                    <MenuItem value="jpeg">.jpeg</MenuItem>
-                  </Select>
-                ) : (
-                  <Select
-                    value={selectedExtension}
-                    onChange={(e) => setSelectedExtension(e.target.value)}
-                  >
-                    <MenuItem value="svg">.svg</MenuItem>
-                    <MenuItem value="png">.png</MenuItem>
-                    <MenuItem value="jpg">.jpg</MenuItem>
-                    <MenuItem value="jpeg">.jpeg</MenuItem>
-                  </Select>
-                ),
+              endAdornment: isVideo ? (
+                <Select
+                  value={selectedExtension}
+                  onChange={(e) => setSelectedExtension(e.target.value)}
+                >
+                  <MenuItem value="webm">.webm</MenuItem>
+                </Select>
+              ) : (
+                <Select
+                  value={selectedExtension}
+                  onChange={(e) => setSelectedExtension(e.target.value)}
+                >
+                  <MenuItem value="svg">.svg</MenuItem>
+                  <MenuItem value="png">.png</MenuItem>
+                  <MenuItem value="jpg">.jpg</MenuItem>
+                  <MenuItem value="jpeg">.jpeg</MenuItem>
+                </Select>
+              ),
             }}
           />
           {pageAlreadyExists && (
@@ -375,6 +542,15 @@ const UploadForm = ({
             rows={5}
           />
         </Stack>
+        {isVideo && loading && videoStage && (
+          <Stack spacing={0.5}>
+            <Typography variant="body2">{videoStage}</Typography>
+            <LinearProgress variant="determinate" value={videoProgress} />
+            <Typography variant="caption">
+              {Math.round(videoProgress)}%
+            </Typography>
+          </Stack>
+        )}
         <Button
           variant="contained"
           color="primary"
@@ -388,8 +564,7 @@ const UploadForm = ({
           {loading
             ? t("UploadForm_uploading")
             : t("UploadForm_upload_to", {
-                destination:
-                  provider === "nccommons" ? "NC Commons" : "Wikimedia Commons",
+                destination: destinationName,
               })}
         </Button>
       </Stack>

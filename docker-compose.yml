@@ -5,10 +5,21 @@ services:
     ports:
       - "3001:3000"
     restart: unless-stopped
+    environment:
+      VIDEO_TMP_DIR: /video-tmp
+    volumes:
+      - video-tmp:/video-tmp
   image-annotation-tool-worker:
     image: image-annotation-tool:latest
     command: npm run start:worker
     restart: unless-stopped
+  image-annotation-tool-video-worker:
+    image: image-annotation-tool-video-worker:latest
+    restart: unless-stopped
+    environment:
+      VIDEO_TMP_DIR: /video-tmp
+    volumes:
+      - video-tmp:/video-tmp
   mongodb:
     image: mongo:4.4.1
     restart: unless-stopped
@@ -23,3 +34,6 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+
+volumes:
+  video-tmp:
