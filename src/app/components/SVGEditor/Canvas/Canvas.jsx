@@ -3,6 +3,7 @@ import React, { useCallback } from 'react'
 import PropTypes from 'prop-types'
 import SvgCanvas from '@svgedit/svgcanvas'
 import svg from '../services/svg'
+import { normalizeViewBoxOrigin } from '../services/viewBox.js'
 import config from './editor/config'
 import TopBar from './TopBar/TopBar.jsx'
 import LeftBar from './LeftBar/LeftBar.jsx'
@@ -123,7 +124,10 @@ const Canvas = ({ svgContent, locale, svgUpdate, onClose, log, onReset }) => {
     if (!canvasState.canvas) return
     oiAttributes.current = svg.saveOIAttr(svgContent)
     canvasState.canvas.clear()
-    const success = canvasState.canvas.setSvgString(svgContent.replace(/'/g, "\\'"), true) // true => prevent undo
+    // a viewBox not starting at (0, 0) would be dropped by svgCanvas and display
+    // the drawing at the wrong place, which also breaks cropping
+    const content = normalizeViewBoxOrigin(svgContent)
+    const success = canvasState.canvas.setSvgString(content.replace(/'/g, "\\'"), true) // true => prevent undo
     updateCanvas(canvasState.canvas, svgcanvasRef.current, config, true)
     if (!success) throw new Error('Error loading SVG')
     dispatchCanvasState({ type: 'updated', updated: false })

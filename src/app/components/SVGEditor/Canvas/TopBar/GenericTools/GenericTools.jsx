@@ -2,15 +2,19 @@ import React from 'react'
 import PropTypes from 'prop-types'
 
 import IconButton from '../../IconButton/IconButton.jsx'
+import { syncCanvasWithDocument } from '../../../services/canvasSync.js'
 
 const GenericTools = ({ canvas, canvasUpdated, svgUpdate, onClose, onReset }) => {
   const onClickUndo = () => {
     canvas.undoMgr.undo()
+    // undoing a crop swaps #svgcontent back, the canvas has to follow it
+    syncCanvasWithDocument(canvas)
     // populateLayers()
     svgUpdate()
   }
   const onClickRedo = () => {
     canvas.undoMgr.redo()
+    syncCanvasWithDocument(canvas)
     svgUpdate()
     // populateLayers()
   }
