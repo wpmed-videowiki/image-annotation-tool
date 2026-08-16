@@ -12,7 +12,7 @@
   position: relative;
   top: 50px;
   left: 50px;
-  height: calc(100% - 60px);
+  height: calc(100% - 92px);
   width: calc(100% - 52px);
   background-color: #A0A0A0;
   border: 1px solid #808080;
@@ -192,11 +192,13 @@
   left: 50px;
   bottom: 0;
   right: 0;
-  height: 35px;
+  height: 40px;
   z-index: 1;
   background-color: #151515;
   color: white;
-  font-size: 0.5em;
+  font-size: 13px;
+  gap: 12px;
+  padding: 0 12px;
   justify-content: space-evenly;
   align-items: center;
 }
@@ -204,7 +206,10 @@
   display: inline;
 }
 .bottom-bar select {
-  font-size: 1em;
+  font-size: 13px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  cursor: pointer;
 }
 .bottom-bar .OIe-context {
   display: inline;
@@ -214,12 +219,13 @@
 }
 .bottom-bar .OIe-zoom {
   position: relative;
-  width: 16px;
+  width: 20px;
   left: -1px;
+  margin-right: 4px;
 }
 
 div.OIe-tools-color {
-  font-size: 0.5em;
+  font-size: 13px;
   display: block;
   text-align: center;
   width: 40px;
@@ -229,12 +235,14 @@ div.OIe-tools-color.button {
   cursor: pointer;
 }
 .OIe-tools-color-sample {
-  width: 15px;
-  height: 15px;
+  width: 20px;
+  height: 20px;
   text-align: center;
   display: inline-block;
   vertical-align: middle;
   border: 1px solid white;
+  border-radius: 3px;
+  cursor: pointer;
 }
 .OIe-tools-color-title {
   width: 16px;
