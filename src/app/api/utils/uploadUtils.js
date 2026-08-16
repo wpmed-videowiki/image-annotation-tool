@@ -1,4 +1,13 @@
-import fetch from "node-fetch";
+const toBlob = async (file) => {
+  if (file instanceof Blob) return file;
+  if (Buffer.isBuffer(file) || ArrayBuffer.isView(file)) return new Blob([file]);
+  if (file && typeof file[Symbol.asyncIterator] === "function") {
+    const chunks = [];
+    for await (const chunk of file) chunks.push(chunk);
+    return new Blob([Buffer.concat(chunks.map((c) => Buffer.from(c)))]);
+  }
+  throw new Error("Unsupported file value passed to upload");
+};
 
 export const fetchCSRFToken = async (baseUrl, token) => {
   const url = `${baseUrl}?action=query&meta=tokens&type=csrf&format=json`;
@@ -33,7 +42,6 @@ export const updateArticleText = async (baseUrl, token, { title, text }) => {
       headers: {
         Authorization: `Bearer ${token}`,
         "User-Agent": process.env.USER_AGENT,
-        ...formData.getHeaders()
       },
     }
   );
@@ -64,7 +72,7 @@ export const uploadFileToCommons = async (
     formData.append('filename', filename);
     formData.append('text', text);
     formData.append('token', csrfToken);
-    formData.append('file', file);
+    formData.append('file', await toBlob(file), filename);
     formData.append('comment', comment || '');
 
     const response = await fetch(
@@ -75,7 +83,6 @@ export const uploadFileToCommons = async (
         headers: {
           Authorization: `Bearer ${token}`,
           "User-Agent": process.env.USER_AGENT,
-          ...formData.getHeaders()
         },
       }
     );
