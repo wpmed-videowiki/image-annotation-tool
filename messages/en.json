@@ -51,6 +51,7 @@
     "UploadForm_image_stage_uploading": "Uploading to {destination}...",
     "UploadForm_image_upload_failed": "The upload failed. Please try again.",
     "UploadForm_image_too_large": "This image is too large. The maximum supported size is 100 MB.",
+    "UploadForm_image_render_too_large": "The annotated image is too large to upload. Try cropping it or starting from a smaller image.",
     "UploadForm_image_unsupported_type": "This file type is not supported. Please pick a JPG, PNG, HEIC or SVG file.",
     "UploadForm_image_converting": "Converting image...",
     "UploadForm_image_convert_failed": "This HEIC file could not be converted. Please try a JPG or PNG instead.",

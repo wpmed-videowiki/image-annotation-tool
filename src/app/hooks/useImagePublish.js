@@ -5,6 +5,8 @@ import { toast } from "react-toastify";
 
 import { publishImage, retryImageStructuredData } from "../actions/image";
 import { base64ToBlob } from "../utils/base64ToBlob";
+import { renderWithinLimit } from "../utils/renderWithinLimit";
+import { MAX_IMAGE_UPLOAD_BYTES } from "../config/constants";
 import useBeforeUnload from "./useBeforeUnload";
 
 const MIME_BY_EXTENSION = {
@@ -41,15 +43,23 @@ export const useImagePublish = ({ provider, wikiSource, editorRef }) => {
       try {
         setStage(t("UploadForm_image_stage_rendering"));
         setProgress(10);
-        const dataUrl = await editorRef.current.toDataURL({
-          format: canvasFormat(extension),
-          quality: 1,
-          multiplier: 2,
-        });
-        const blob = base64ToBlob(
-          dataUrl.split(",")[1],
-          MIME_BY_EXTENSION[extension] || "application/octet-stream"
+        const blob = await renderWithinLimit(
+          async (multiplier) => {
+            const dataUrl = await editorRef.current.toDataURL({
+              format: canvasFormat(extension),
+              quality: 1,
+              multiplier,
+            });
+            return base64ToBlob(
+              dataUrl.split(",")[1],
+              MIME_BY_EXTENSION[extension] || "application/octet-stream"
+            );
+          },
+          { maxBytes: MAX_IMAGE_UPLOAD_BYTES }
         );
+        if (!blob) {
+          throw new Error(t("UploadForm_image_render_too_large"));
+        }
 
         const formData = new FormData();
         formData.append("file", blob, `${title}.${extension}`);

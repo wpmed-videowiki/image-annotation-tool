@@ -42,7 +42,7 @@ export const SUPPORTED_DEVICE_IMAGE_EXTENSIONS = [
 ];
 export const MAX_DEVICE_IMAGE_BYTES = 100 * 1024 * 1024; // 100 MB
 // canvas export cap, must fit the 50mb server-action body limit
-export const MAX_IMAGE_UPLOAD_BYTES = 40 * 1024 * 1024;
+export const MAX_IMAGE_UPLOAD_BYTES = 90 * 1024 * 1024;
 
 // --- Commons upload wizard ---------------------------------------------------
 
