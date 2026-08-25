@@ -14,14 +14,22 @@ import {
 } from "./ffmpegUtils.mjs";
 import { uploadFileToCommonsChunked } from "./chunkedUploadUtils.mjs";
 import {
+  fetchMediaInfoEntityId,
+  writeStructuredData,
+} from "../app/api/utils/sdcUtils.js";
+import { buildStructuredData } from "../app/utils/structuredData.js";
+import {
   JOBS_TMP_DIR,
   UPLOADS_TMP_DIR,
   VIDEO_TMP_DIR,
   ensureTmpDirs,
 } from "../lib/videoTmp.js";
 
-const COMMONS_BASE_URL = "https://commons.wikimedia.org/w/api.php";
-const NCCOMMONS_BASE_URL = "https://nccommons.org/w/api.php";
+// overridable so the pipeline can run against local-commons
+const COMMONS_BASE_URL =
+  process.env.COMMONS_API_URL || "https://commons.wikimedia.org/w/api.php";
+const NCCOMMONS_BASE_URL =
+  process.env.NCCOMMONS_API_URL || "https://nccommons.org/w/api.php";
 
 export const MAX_CONCURRENT_VIDEO_JOBS = 2;
 const STALE_JOB_MS = 15 * 60 * 1000;
@@ -32,10 +40,11 @@ const DRY_RUN_DIR = path.join(VIDEO_TMP_DIR, "dry-run");
 
 const RUNNING_STATUSES = ["downloading", "processing", "uploading", "publishing"];
 
-// Overall progress bands per stage
+// progress bands per stage, tail reserved for the SDC write
 const DOWNLOAD_BAND = [0, 15];
-const PROCESS_BAND = [15, 75];
-const UPLOAD_BAND = [75, 98];
+const PROCESS_BAND = [15, 72];
+const UPLOAD_BAND = [72, 92];
+const SDC_PROGRESS = 96;
 
 const setJob = async (jobId, fields) => {
   try {
@@ -198,12 +207,58 @@ export async function runVideoJob(jobId) {
         onProgress: (percent) => writeProgress(mapBand(UPLOAD_BAND, percent)),
         onStage: (stage) => {
           if (stage === "publishing") {
-            void setJob(job._id, { status: "publishing", stage, progress: 98 });
+            void setJob(job._id, { status: "publishing", stage, progress: 95 });
           } else {
             void setJob(job._id, { stage });
           }
         },
       });
+    }
+
+    // 3b. structured data. Skipped for NC Commons (no WikibaseMediaInfo) and
+    // pre-wizard jobs. A failure here never fails the job - the file is already
+    // public and erroring would push the user into a fileexists re-upload. We
+    // record the outcome on job.sdc and let retryStructuredData() re-run it.
+    let sdc = null;
+    const structured =
+      !DRY_RUN && upload?.result === "Success" && provider === "commons"
+        ? buildStructuredData(job.metadata)
+        : null;
+
+    if (structured) {
+      const user = await UserModel.findById(job.user);
+      const token = user?.wikimediaToken;
+      let mid = null;
+      try {
+        if (!token) throw new Error("mwoauth-invalid-authorization");
+        await setJob(job._id, {
+          status: "publishing",
+          stage: "writing structured data",
+          progress: SDC_PROGRESS,
+        });
+        mid = await fetchMediaInfoEntityId(
+          COMMONS_BASE_URL,
+          token,
+          job.target.filename
+        );
+        if (!mid) throw new Error("no-such-entity");
+        await writeStructuredData(COMMONS_BASE_URL, token, {
+          entityId: mid,
+          data: structured,
+          summary: "Structured data from the Image Annotation Tool upload wizard",
+        });
+        sdc = { ok: true, mid, at: new Date() };
+      } catch (err) {
+        console.log("sdc write failed", err);
+        sdc = {
+          ok: false,
+          mid,
+          error: err?.message || "sdc write failed",
+          info: err?.info || "",
+          at: new Date(),
+        };
+      }
+      writeProgress(99);
     }
 
     // 4. record the result
@@ -230,6 +285,7 @@ export async function runVideoJob(jobId) {
       stage: "",
       progress: 100,
       result: { descriptionurl, imageinfo: upload?.imageinfo || null },
+      sdc,
     });
     success = true;
   } catch (err) {

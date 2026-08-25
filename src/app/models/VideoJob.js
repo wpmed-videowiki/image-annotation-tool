@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+import UploadMetadataSchema from "./uploadMetadataSchema.js";
+
 const Schema = mongoose.Schema;
 
 const VideoJobSchema = new Schema(
@@ -25,7 +27,12 @@ const VideoJobSchema = new Schema(
     sourceUrl: { type: String, default: "" },
     deviceUploadId: { type: String, default: "" },
     probe: { type: Object, default: {} },
-    target: { type: Object, required: true }, // { filename, text, comment, provider, wikiSource }
+    // { filename, text, comment, provider, wikiSource }
+    target: { type: Object, required: true },
+    // wizard answers; absent on pre-wizard jobs, guard on metadata?.version
+    metadata: { type: UploadMetadataSchema, default: undefined },
+    // SDC write outcome: { ok, mid, error, info, attempts, at }
+    sdc: { type: Object, default: null },
     result: { type: Object, default: null },
     error: { type: String, default: "" },
     errorDetail: { type: String, default: "" },

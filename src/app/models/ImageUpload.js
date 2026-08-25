@@ -15,6 +15,11 @@ const ImageUploadSchema = new Schema(
     statsStatus: { type: String, default: "done" },
     possibleWikis: { type: Array, default: [] },
     statsFinishedWikis: { type: Array, default: [] },
+    // wizard answers, absent on legacy/overwrite uploads. Plain Object because
+    // this file must stay CommonJS; values are normalized before they get here.
+    metadata: { type: Object, default: undefined },
+    // SDC write outcome: { ok, mid, error, info, at }
+    sdc: { type: Object, default: null },
   },
   { timestamps: true }
 );
