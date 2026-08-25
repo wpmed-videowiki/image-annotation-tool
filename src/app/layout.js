@@ -4,7 +4,7 @@ import AppProviders from "./AppProviders";
 import { getLocale, getMessages } from "next-intl/server";
 import { NextIntlClientProvider } from "next-intl";
 import Header from "./components/Header";
-import { Box } from "@mui/material";
+import { Box, CssBaseline } from "@mui/material";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -27,6 +27,7 @@ export default async function RootLayout({ children }) {
           <NextIntlClientProvider messages={messages}>
             <main>
               <Header />
+              <CssBaseline />
               <Box sx={{ marginTop: 11 }}>{children}</Box>
             </main>
           </NextIntlClientProvider>

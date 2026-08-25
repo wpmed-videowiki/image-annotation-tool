@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import UserModel from "../models/User";
 import connectDB from "../api/lib/connectDB";
 import { updateArticleText } from "../api/utils/uploadUtils";
+import { FALLBACK_CAPTION_LANGUAGES } from "../config/constants";
 
 const PLAYER_IMAGE_WIDTH = 1280;
 const COMMONS_BASE_URL = "https://commons.wikimedia.org/w/api.php";
@@ -144,4 +145,135 @@ export const uploadFile = async (formData) => {
   });
   const response = await req.json();
   return response;
+};
+
+// --- upload wizard lookups ---------------------------------------------------
+
+const CATEGORY_CACHE_TTL_MS = 5 * 60 * 1000;
+const LANGUAGE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const LOOKUP_CACHE_MAX_ENTRIES = 200;
+const lookupCache = new Map();
+
+const lookupGet = (key) => {
+  const hit = lookupCache.get(key);
+  if (!hit) return null;
+  if (hit.expires < Date.now()) {
+    lookupCache.delete(key);
+    return null;
+  }
+  return hit.value;
+};
+
+const lookupSet = (key, value, ttl) => {
+  if (lookupCache.size >= LOOKUP_CACHE_MAX_ENTRIES) {
+    lookupCache.delete(lookupCache.keys().next().value);
+  }
+  lookupCache.set(key, { value, expires: Date.now() + ttl });
+};
+
+const apiBaseFor = (provider) =>
+  provider === "nccommons" ? NCCOMMONS_BASE_URL : COMMONS_BASE_URL;
+
+// category autocomplete; prefixsearch on namespace 14 like MediaWiki's own widget
+export const searchCommonsCategories = async (search, provider = "commons") => {
+  const query = String(search || "").trim();
+  if (query.length < 2 || query.length > 255) return [];
+
+  const key = `cat:${provider}:${query.toLowerCase()}`;
+  const cached = lookupGet(key);
+  if (cached) return cached;
+
+  const url =
+    `${apiBaseFor(provider)}?action=query&format=json&formatversion=2` +
+    `&list=prefixsearch&psnamespace=14&pslimit=10` +
+    `&pssearch=${encodeURIComponent(query)}`;
+
+  try {
+    const response = await fetch(url, {
+      headers: { "User-Agent": process.env.USER_AGENT },
+    });
+    const data = await response.json();
+    const results = (data?.query?.prefixsearch || []).map((page) =>
+      page.title.replace(/^Category:/i, "")
+    );
+    lookupSet(key, results, CATEGORY_CACHE_TTL_MS);
+    return results;
+  } catch (err) {
+    console.log(err);
+    return [];
+  }
+};
+
+// language list for caption/description rows, with a hardcoded fallback
+export const fetchCommonsLanguages = async () => {
+  const key = "languages";
+  const cached = lookupGet(key);
+  if (cached) return cached;
+
+  const url = `${COMMONS_BASE_URL}?action=query&meta=siteinfo&siprop=languages&format=json&formatversion=2`;
+  try {
+    const response = await fetch(url, {
+      headers: { "User-Agent": process.env.USER_AGENT },
+    });
+    const data = await response.json();
+    const languages = (data?.query?.languages || [])
+      .map((language) => ({ code: language.code, name: language.name || language.code }))
+      .filter((language) => language.code);
+    if (!languages.length) return FALLBACK_CAPTION_LANGUAGES;
+    lookupSet(key, languages, LANGUAGE_CACHE_TTL_MS);
+    return languages;
+  } catch (err) {
+    console.log(err);
+    return FALLBACK_CAPTION_LANGUAGES;
+  }
+};
+
+// languagesearch API (same as UploadWizard): finds languages by any name,
+// e.g. "french" matches fr
+export const searchCommonsLanguages = async (search) => {
+  const query = String(search || "").trim();
+  if (!query || query.length > 100) return [];
+
+  const key = `languagesearch:${query.toLowerCase()}`;
+  const cached = lookupGet(key);
+  if (cached) return cached;
+
+  const url =
+    `${COMMONS_BASE_URL}?action=languagesearch&format=json&formatversion=2` +
+    `&search=${encodeURIComponent(query)}`;
+  try {
+    const response = await fetch(url, {
+      headers: { "User-Agent": process.env.USER_AGENT },
+    });
+    const data = await response.json();
+    // { code: matched name, ... }
+    const results = Object.entries(data?.languagesearch || {}).map(
+      ([code, name]) => ({ code, name })
+    );
+    lookupSet(key, results, LANGUAGE_CACHE_TTL_MS);
+    return results;
+  } catch (err) {
+    console.log(err);
+    return [];
+  }
+};
+
+// renders a custom license tag for the wizard's Preview button
+export const previewWikitext = async (text, provider = "commons") => {
+  const value = String(text || "").trim();
+  if (!value || value.length > 500) return "";
+  const url =
+    `${apiBaseFor(provider)}?action=parse&format=json&formatversion=2` +
+    `&contentmodel=wikitext&prop=text&disablelimitreport=1` +
+    `&text=${encodeURIComponent(value)}`;
+  try {
+    const response = await fetch(url, {
+      headers: { "User-Agent": process.env.USER_AGENT },
+    });
+    const data = await response.json();
+    return data?.parse?.text || "";
+  } catch (err) {
+    console.log(err);
+    return "";
+  }
 };

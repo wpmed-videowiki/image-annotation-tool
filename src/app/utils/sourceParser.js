@@ -28,13 +28,9 @@ export const extractPermission = (text) => {
 };
 
 export const extractAuthor = (text) => {
-  const regex = /author[=\s*:]([^\n]*)/gi;
-  const match = text.match(regex);
-
-  if (match) {
-    return match[0].replace(/author[=\s*:]/gi, "").trim();
-  }
-  return "";
+  // \s* so "|Author =..." doesn't keep the "="
+  const match = text.match(/author\s*[=:]\s*([^\n]*)/i);
+  return match ? match[1].trim() : "";
 };
 
 

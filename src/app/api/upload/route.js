@@ -5,7 +5,7 @@ import { uploadFileToCommons } from "../utils/uploadUtils";
 import UserModel from "../../models/User";
 import ImageUploadModel from "../../models/ImageUpload";
 
-const COMMONS_BASE_URL = "https://commons.wikimedia.org/w/api.php";
+const COMMONS_BASE_URL = process.env.COMMONS_API_URL || "https://commons.wikimedia.org/w/api.php";
 const NCCOMMONS_BASE_URL = "https://nccommons.org/w/api.php";
 
 const generateRandomId = () => Math.random().toString(36).substring(7);

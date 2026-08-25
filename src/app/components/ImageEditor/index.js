@@ -7,7 +7,13 @@ import "./blurTool.css";
 // default color red
 const DEFAULT_COLOR = "#ff4040";
 
-const ImageEditor = ({ image, instanceRef, aspectRatio, id }) => {
+const ImageEditor = ({
+  image,
+  instanceRef,
+  aspectRatio,
+  id,
+  height = "calc(100vh - 80px)",
+}) => {
   const containerRef = useRef(null);
   const containerWidth = useRef(null);
 
@@ -95,8 +101,8 @@ const ImageEditor = ({ image, instanceRef, aspectRatio, id }) => {
   }, [image, instanceRef.current, containerRef.current, id]);
 
   return (
-    <div ref={containerRef} style={{ height: "calc(100vh - 80px)" }}>
-      <div id={id}></div>;
+    <div ref={containerRef} style={{ height }}>
+      <div id={id}></div>
     </div>
   );
 };

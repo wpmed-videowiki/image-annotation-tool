@@ -20,6 +20,7 @@
     "async": "^3.2.5",
     "color-string": "^1.9.1",
     "dotenv": "^16.4.5",
+    "heic-convert": "^2.1.0",
     "mongoose": "^8.8.3",
     "next": "15.5.9",
     "next-auth": "^4.24.7",

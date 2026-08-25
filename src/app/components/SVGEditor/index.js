@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import Editor from "./editor.class";
 
-const SVGEditor = ({ image, instanceRef }) => {
+const SVGEditor = ({ image, instanceRef, height = "calc(100vh - 80px)" }) => {
   const ref = useRef(null);
   useEffect(() => {
     if (!ref.current && image) {
@@ -90,7 +90,7 @@ const SVGEditor = ({ image, instanceRef }) => {
     <div>
       <div
         id="svg-editor"
-        style={{ position: "relative", height: "calc(100vh - 80px)" }}
+        style={{ position: "relative", height }}
       ></div>
     </div>
   );
