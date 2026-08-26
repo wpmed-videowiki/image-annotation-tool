@@ -25,7 +25,8 @@ export const SUPPORTED_VIDEO_EXTENSIONS = [
   "ogv",
 ];
 
-export const VIDEO_SERVER_CHUNK_BYTES = 20 * 1024 * 1024;
+// chunk size for device uploads to /api/{video,image}/upload-chunk
+export const SERVER_CHUNK_BYTES = 20 * 1024 * 1024;
 export const MAX_DEVICE_VIDEO_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB v1 cap
 
 // formats the image wizard can publish. SVG sources are locked to svg
@@ -40,9 +41,13 @@ export const SUPPORTED_DEVICE_IMAGE_EXTENSIONS = [
   "heif",
   "svg",
 ];
-export const MAX_DEVICE_IMAGE_BYTES = 100 * 1024 * 1024; // 100 MB
-// canvas export cap, must fit the 50mb server-action body limit
-export const MAX_IMAGE_UPLOAD_BYTES = 90 * 1024 * 1024;
+export const MAX_DEVICE_IMAGE_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
+// canvas export cap; renders travel chunked to the server, then to Commons
+// via the stash API, so this is a policy cap rather than a transport limit
+export const MAX_IMAGE_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
+// heic-convert decodes the whole file in memory server-side, so HEIC/HEIF
+// conversion keeps a lower cap than plain device images
+export const MAX_HEIC_CONVERT_BYTES = 100 * 1024 * 1024;
 
 // --- Commons upload wizard ---------------------------------------------------
 

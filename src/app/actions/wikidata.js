@@ -1,5 +1,9 @@
 "use server";
 
+import { createLogger } from "../../lib/logger.js";
+
+const log = createLogger("action.wikidata");
+
 // Wikidata entity search for the "main subjects" field.
 
 const WIKIDATA_API_URL =
@@ -63,7 +67,7 @@ export const searchWikidataEntities = async (search, language = "en") => {
     return results;
   } catch (err) {
     // don't throw into the autocomplete, empty list is fine
-    console.log(err);
+    log.warn("wikidata lookup failed", { err });
     return [];
   }
 };

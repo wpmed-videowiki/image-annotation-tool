@@ -22,6 +22,9 @@ import {
   fetchMediaInfoEntityId,
   writeStructuredData,
 } from "../api/utils/sdcUtils.js";
+import { createLogger } from "../../lib/logger.js";
+
+const log = createLogger("action.video");
 
 const COMMONS_API_URL =
   process.env.COMMONS_API_URL || "https://commons.wikimedia.org/w/api.php";
@@ -109,12 +112,20 @@ export const createVideoJob = async (payload) => {
   const user = await UserModel.findById(appUserId);
   if (!user) return { error: "not_authenticated" };
 
+  const reject = (result) => {
+    log.warn("video job rejected", {
+      reason: result?.error || "unknown",
+      userId: String(user._id),
+    });
+    return result;
+  };
+
   const { sourceType, sourceUrl, deviceUploadId, ops, target, metadata } =
     payload || {};
   const cleanOps = validateOps(ops);
-  if (!cleanOps) return { error: "invalid_ops" };
+  if (!cleanOps) return reject({ error: "invalid_ops" });
   if (!validateSource(sourceType, sourceUrl, deviceUploadId)) {
-    return { error: "invalid_source" };
+    return reject({ error: "invalid_source" });
   }
 
   // resolve first so the author byline uses the target wiki's username
@@ -128,13 +139,13 @@ export const createVideoJob = async (payload) => {
   if (metadata) {
     const normalized = normalizeUploadMetadata(metadata);
     if (hasBlockingError(normalized.errors)) {
-      return {
+      return reject({
         error: "blocked_license",
         fields: normalized.errors.filter((e) => e.field),
-      };
+      });
     }
     if (!normalized.ok) {
-      return { error: "invalid_metadata", fields: normalized.errors };
+      return reject({ error: "invalid_metadata", fields: normalized.errors });
     }
     cleanMetadata = normalized.value;
     filename = `File:${cleanMetadata.describe.title}.webm`;
@@ -142,7 +153,7 @@ export const createVideoJob = async (payload) => {
       provider === "nccommons" ? user.nccommonsProfile : user.wikimediaProfile;
     const username = profile?.username || profile?.name || user.username || "";
     text = buildTargetText(payload, cleanMetadata, username);
-    if (text === null) return { error: "invalid_metadata", fields: [] };
+    if (text === null) return reject({ error: "invalid_metadata", fields: [] });
   }
 
   if (
@@ -150,17 +161,17 @@ export const createVideoJob = async (payload) => {
     !filename.toLowerCase().endsWith(".webm") ||
     filename.length > 240
   ) {
-    return { error: "invalid_filename" };
+    return reject({ error: "invalid_filename" });
   }
   const token =
     provider === "nccommons" ? user.nccommonsToken : user.wikimediaToken;
-  if (!token) return { error: "not_authenticated" };
+  if (!token) return reject({ error: "not_authenticated" });
 
   const activeJobs = await VideoJobModel.countDocuments({
     user: user._id,
     status: { $in: ACTIVE_STATUSES },
   });
-  if (activeJobs > 0) return { error: "job_already_running" };
+  if (activeJobs > 0) return reject({ error: "job_already_running" });
 
   let job;
   try {
@@ -183,11 +194,18 @@ export const createVideoJob = async (payload) => {
   } catch (err) {
     // surface enum violations as field errors, not a 500
     if (err?.name === "ValidationError") {
-      return { error: "invalid_metadata", fields: [] };
+      return reject({ error: "invalid_metadata", fields: [] });
     }
     throw err;
   }
 
+  log.info("video job created", {
+    jobId: String(job._id),
+    userId: String(user._id),
+    provider,
+    sourceType,
+    filename,
+  });
   // execution happens in the video worker (src/workers/videoWorker.mjs),
   // which polls for queued jobs every few seconds
   return { jobId: String(job._id) };
@@ -265,7 +283,7 @@ export const retryStructuredData = async (jobId) => {
     );
     return { ok: true };
   } catch (err) {
-    console.log("sdc retry failed", err);
+    log.warn("sdc retry failed", { jobId: String(jobId), err });
     await VideoJobModel.updateOne(
       { _id: job._id },
       {

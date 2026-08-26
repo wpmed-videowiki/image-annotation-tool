@@ -1,28 +1,28 @@
 "use client";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "react-toastify";
 
-import { publishImage, retryImageStructuredData } from "../actions/image";
-import { base64ToBlob } from "../utils/base64ToBlob";
+import {
+  createImageJob,
+  getImageJobStatus,
+  retryImageStructuredData,
+} from "../actions/image";
+import { editorToBlob } from "../utils/editorToBlob";
 import { renderWithinLimit } from "../utils/renderWithinLimit";
+import { uploadDeviceFileToServer } from "../utils/uploadDeviceFile";
 import { MAX_IMAGE_UPLOAD_BYTES } from "../config/constants";
 import useBeforeUnload from "./useBeforeUnload";
 
-const MIME_BY_EXTENSION = {
-  svg: "image/svg+xml",
-  png: "image/png",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-};
+const ACTIVE_STATUSES = ["queued", "uploading", "publishing"];
 
-// canvas format name only differs from the extension for jpg
-const canvasFormat = (extension) => (extension === "jpg" ? "jpeg" : extension);
+const POLL_INTERVAL_MS = 2000;
 
-// Image publish surface, same shape as useVideoPublish so the shell can drive
-// either. Synchronous: one server action call, no job or polling.
+// Image publish pipeline, same shape as useVideoPublish so the shell can
+// drive either: render, chunk-upload the blob, queue an image job, poll it.
 export const useImagePublish = ({ provider, wikiSource, editorRef }) => {
   const t = useTranslations();
+  const pollRef = useRef(null);
 
   const [loading, setLoading] = useState(false);
   const [stage, setStage] = useState("");
@@ -34,7 +34,44 @@ export const useImagePublish = ({ provider, wikiSource, editorRef }) => {
   const destinationName =
     provider === "nccommons" ? "NC Commons" : "Wikimedia Commons";
 
+  useEffect(() => () => clearInterval(pollRef.current), []);
   useBeforeUnload(loading);
+
+  const pollImageJob = useCallback(
+    (id) => {
+      pollRef.current = setInterval(async () => {
+        try {
+          const status = await getImageJobStatus(id);
+          if (!status) return;
+          setProgress(status.progress || 0);
+          if (ACTIVE_STATUSES.includes(status.status)) {
+            setStage(
+              t(`UploadForm_image_stage_${status.status}`, {
+                destination: destinationName,
+              })
+            );
+          }
+          if (status.status === "done") {
+            clearInterval(pollRef.current);
+            setStage("");
+            setUploadedUrl(status.result?.descriptionurl || "");
+            setSdc(status.sdc || null);
+            setUploadId(status.result?.uploadId || null);
+            toast.success("File uploaded successfully");
+            setLoading(false);
+          } else if (status.status === "error") {
+            clearInterval(pollRef.current);
+            setStage("");
+            toast.error(status.error || t("UploadForm_image_upload_failed"));
+            setLoading(false);
+          }
+        } catch (err) {
+          console.log(err);
+        }
+      }, POLL_INTERVAL_MS);
+    },
+    [destinationName, t]
+  );
 
   const publish = useCallback(
     async ({ title, extension, text, textEdited, comment, metadata, otherVersions }) => {
@@ -44,25 +81,28 @@ export const useImagePublish = ({ provider, wikiSource, editorRef }) => {
         setStage(t("UploadForm_image_stage_rendering"));
         setProgress(10);
         const blob = await renderWithinLimit(
-          async (multiplier) => {
-            const dataUrl = await editorRef.current.toDataURL({
-              format: canvasFormat(extension),
-              quality: 1,
-              multiplier,
-            });
-            return base64ToBlob(
-              dataUrl.split(",")[1],
-              MIME_BY_EXTENSION[extension] || "application/octet-stream"
-            );
-          },
+          (multiplier) =>
+            editorToBlob(editorRef.current, { extension, multiplier, quality: 1 }),
           { maxBytes: MAX_IMAGE_UPLOAD_BYTES }
         );
         if (!blob) {
           throw new Error(t("UploadForm_image_render_too_large"));
         }
 
+        // the render travels to the server in chunks; the job only gets a
+        // reference to the assembled temp file
+        setStage(t("UploadForm_image_stage_uploading_to_server"));
+        const file = new File([blob], `${title}.${extension}`, {
+          type: blob.type,
+        });
+        const { uploadId: serverUploadId } = await uploadDeviceFileToServer(
+          file,
+          (pct) => setProgress(10 + pct * 0.5),
+          "/api/image/upload-chunk"
+        );
+
         const formData = new FormData();
-        formData.append("file", blob, `${title}.${extension}`);
+        formData.append("uploadId", serverUploadId);
         formData.append("metadata", JSON.stringify(metadata));
         formData.append("extension", extension);
         formData.append("comment", (comment || "").trim());
@@ -73,12 +113,12 @@ export const useImagePublish = ({ provider, wikiSource, editorRef }) => {
         formData.append("otherVersions", otherVersions || "");
 
         setStage(
-          t("UploadForm_image_stage_uploading", { destination: destinationName })
+          t("UploadForm_image_stage_queued", { destination: destinationName })
         );
-        setProgress(40);
-        const response = await publishImage(formData);
+        setProgress(0);
 
-        if (response?.error || !response?.ok) {
+        const response = await createImageJob(formData);
+        if (response?.error || !response?.jobId) {
           const error = new Error(
             response?.error || t("UploadForm_image_upload_failed")
           );
@@ -86,15 +126,8 @@ export const useImagePublish = ({ provider, wikiSource, editorRef }) => {
           error.fields = response?.fields || [];
           throw error;
         }
-
-        setProgress(100);
-        setStage("");
-        setUploadedUrl(response.descriptionurl || "");
-        setSdc(response.sdc || null);
-        setUploadId(response.uploadId || null);
-        toast.success("File uploaded successfully");
-        setLoading(false);
-        return { ok: true };
+        pollImageJob(response.jobId);
+        return { ok: true, jobId: response.jobId };
       } catch (err) {
         console.log(err);
         setStage("");
@@ -108,7 +141,7 @@ export const useImagePublish = ({ provider, wikiSource, editorRef }) => {
         };
       }
     },
-    [destinationName, editorRef, provider, t, wikiSource]
+    [destinationName, editorRef, pollImageJob, provider, t, wikiSource]
   );
 
   const retrySdc = useCallback(async () => {

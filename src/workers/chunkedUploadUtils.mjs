@@ -4,6 +4,7 @@ import {
   updateArticleText,
   uploadFileToCommons,
 } from "../app/api/utils/uploadUtils.js";
+import { createLogger } from "../lib/logger.js";
 
 export const COMMONS_CHUNK_BYTES = 10 * 1024 * 1024;
 export const COMMONS_SINGLE_SHOT_MAX_BYTES = 95 * 1024 * 1024;
@@ -48,10 +49,24 @@ const postUpload = async (baseUrl, token, fields) => {
 export const uploadFileToCommonsChunked = async (
   baseUrl,
   token,
-  { filename, text, comment, filePath, onProgress = () => {}, onStage = () => {} }
+  {
+    filename,
+    text,
+    comment,
+    filePath,
+    onProgress = () => {},
+    onStage = () => {},
+    // fired on every checkstatus poll so callers can keep a liveness
+    // heartbeat while Commons assembles the file (can take many minutes
+    // with no progress change)
+    onPoll = () => {},
+    // runners inject their per-job child logger
+    log = createLogger("commons.chunked-upload"),
+  }
 ) => {
   const size = (await fs.promises.stat(filePath)).size;
   if (size <= COMMONS_SINGLE_SHOT_MAX_BYTES) {
+    log.debug("file under chunk threshold, single-shot upload", { size });
     return uploadFileToCommons(baseUrl, token, {
       filename,
       text,
@@ -61,6 +76,7 @@ export const uploadFileToCommonsChunked = async (
   }
 
   const totalChunks = Math.ceil(size / COMMONS_CHUNK_BYTES);
+  log.info("chunked upload starting", { filename, size, totalChunks });
   let csrfToken = await fetchCSRFToken(baseUrl, token);
   let filekey = null;
   let offset = 0;
@@ -93,10 +109,18 @@ export const uploadFileToCommonsChunked = async (
         } catch (err) {
           attempt += 1;
           if (attempt >= MAX_CHUNK_ATTEMPTS) throw err;
+          const backoffMs = 1000 * Math.pow(3, attempt - 1);
+          log.warn("chunk upload attempt failed, retrying", {
+            chunkIndex,
+            attempt,
+            backoffMs,
+            err,
+          });
           if (err.message === "badtoken") {
+            log.warn("csrf token rejected, refreshing", { chunkIndex });
             csrfToken = await fetchCSRFToken(baseUrl, token);
           }
-          await sleep(1000 * Math.pow(3, attempt - 1));
+          await sleep(backoffMs);
         }
       }
 
@@ -110,15 +134,23 @@ export const uploadFileToCommonsChunked = async (
       }
       // trust the server-reported offset so a partially-received chunk
       // re-syncs instead of corrupting the stash
+      if (typeof upload.offset === "number" && upload.offset !== offset + length) {
+        log.warn("server offset resync", {
+          expected: offset + length,
+          serverOffset: upload.offset,
+        });
+      }
       offset =
         typeof upload.offset === "number" ? upload.offset : offset + length;
       chunkIndex += 1;
+      log.debug("chunk stashed", { chunkIndex, offset, totalChunks });
       onProgress((offset / size) * 95);
     }
 
     if (!filekey) throw new Error("no filekey returned by stash upload");
 
     onStage("publishing");
+    log.info("publishing stashed file", { filename, filekey });
     let upload = await postUpload(baseUrl, token, {
       action: "upload",
       filekey,
@@ -142,12 +174,14 @@ export const uploadFileToCommonsChunked = async (
         );
       }
       await sleep(CHECKSTATUS_INTERVAL_MS);
+      onPoll();
       upload = await postUpload(baseUrl, token, {
         action: "upload",
         checkstatus: 1,
         filekey,
         token: csrfToken,
       });
+      log.debug("publish checkstatus", { result: upload.result });
     }
 
     if (upload.result !== "Success") {
@@ -159,6 +193,7 @@ export const uploadFileToCommonsChunked = async (
       throw new Error(`unexpected publish result: ${upload.result}`);
     }
 
+    log.info("publish accepted", { filename });
     onProgress(100);
     await updateArticleText(baseUrl, token, { title: filename, text });
     return upload;

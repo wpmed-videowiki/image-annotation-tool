@@ -3,7 +3,10 @@ import convert from "heic-convert";
 
 import connectDB from "../lib/connectDB";
 import UserModel from "../../models/User";
-import { MAX_DEVICE_IMAGE_BYTES } from "../../config/constants";
+import { MAX_HEIC_CONVERT_BYTES } from "../../config/constants";
+import { createLogger } from "../../../lib/logger.js";
+
+const log = createLogger("api.convert-heic");
 
 // Browsers can't decode HEIC/HEIF, so convert to JPEG here before the editor
 // sees the file. heic-convert is WASM, no native deps.
@@ -23,7 +26,7 @@ export const POST = async (req) => {
   if (!file || typeof file.arrayBuffer !== "function") {
     return NextResponse.json({ error: "invalid_file" }, { status: 400 });
   }
-  if (file.size <= 0 || file.size > MAX_DEVICE_IMAGE_BYTES) {
+  if (file.size <= 0 || file.size > MAX_HEIC_CONVERT_BYTES) {
     return NextResponse.json({ error: "file_too_large" }, { status: 413 });
   }
 
@@ -34,7 +37,7 @@ export const POST = async (req) => {
       headers: { "Content-Type": "image/jpeg" },
     });
   } catch (err) {
-    console.log("heic conversion failed", err);
+    log.error("heic conversion failed", { size: file.size, err });
     return NextResponse.json({ error: "conversion_failed" }, { status: 422 });
   }
 };

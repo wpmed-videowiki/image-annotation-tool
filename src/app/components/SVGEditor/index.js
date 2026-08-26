@@ -24,6 +24,17 @@ const SVGEditor = ({ image, instanceRef, height = "calc(100vh - 80px)" }) => {
 
             return "";
           },
+          // same serialization as toDataURL without the base64 round-trip,
+          // so large or non-Latin-1 documents export fine
+          async toBlob() {
+            const svgEl = document
+              .getElementById("svg-editor")
+              .querySelector("#svgcontent");
+            if (!svgEl) return null;
+            svgEl.querySelector("#selectorParentGroup")?.remove();
+            const svgData = new XMLSerializer().serializeToString(svgEl);
+            return new Blob([svgData], { type: "image/svg+xml" });
+          },
         };
       }
       // editor.load(image);

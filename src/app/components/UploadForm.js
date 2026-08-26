@@ -5,18 +5,12 @@ import { useState } from "react";
 import { UploadFile } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import { base64ToBlob } from "../utils/base64ToBlob";
+import { MIME_BY_EXTENSION } from "../utils/editorToBlob";
 import { useTranslations } from "next-intl";
 import { SUPPORTED_OVERWRITE_EXTENSIONS } from "../config/constants";
 import { updateUserDefaultUploadOption } from "../actions/user";
 import RequireUploadAuth from "./RequireUploadAuth";
 import UploadSuccess from "./UploadSuccess";
-
-const MIME_BY_EXTENSION = {
-  svg: "image/svg+xml",
-  png: "image/png",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-};
 
 // Quick overwrite path: re-upload the annotated canvas over the original file,
 // keeping the original wikitext. "Upload as new file" just switches modes.

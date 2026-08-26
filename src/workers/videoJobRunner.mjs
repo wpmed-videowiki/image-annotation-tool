@@ -13,17 +13,25 @@ import {
   runFfmpeg,
 } from "./ffmpegUtils.mjs";
 import { uploadFileToCommonsChunked } from "./chunkedUploadUtils.mjs";
-import {
-  fetchMediaInfoEntityId,
-  writeStructuredData,
-} from "../app/api/utils/sdcUtils.js";
+import { writeSdcRecord } from "../app/api/utils/sdcWrite.js";
 import { buildStructuredData } from "../app/utils/structuredData.js";
 import {
   JOBS_TMP_DIR,
   UPLOADS_TMP_DIR,
-  VIDEO_TMP_DIR,
   ensureTmpDirs,
 } from "../lib/videoTmp.js";
+import {
+  DRY_RUN_DIR,
+  makeHeartbeat,
+  makeProgressWriter,
+  mapBand,
+  mapJobError,
+  setJob,
+  startNextQueuedJob,
+} from "./jobQueue.mjs";
+import { createLogger } from "../lib/logger.js";
+
+const logger = createLogger("worker.video-job");
 
 // overridable so the pipeline can run against local-commons
 const COMMONS_BASE_URL =
@@ -31,68 +39,13 @@ const COMMONS_BASE_URL =
 const NCCOMMONS_BASE_URL =
   process.env.NCCOMMONS_API_URL || "https://nccommons.org/w/api.php";
 
-export const MAX_CONCURRENT_VIDEO_JOBS = 2;
-const STALE_JOB_MS = 15 * 60 * 1000;
-const SWEEP_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-
 const DRY_RUN = process.env.VIDEO_UPLOAD_DRY_RUN === "true";
-const DRY_RUN_DIR = path.join(VIDEO_TMP_DIR, "dry-run");
-
-const RUNNING_STATUSES = ["downloading", "processing", "uploading", "publishing"];
 
 // progress bands per stage, tail reserved for the SDC write
 const DOWNLOAD_BAND = [0, 15];
 const PROCESS_BAND = [15, 72];
 const UPLOAD_BAND = [72, 92];
 const SDC_PROGRESS = 96;
-
-const setJob = async (jobId, fields) => {
-  try {
-    await VideoJobModel.updateOne({ _id: jobId }, { $set: fields });
-  } catch (err) {
-    console.log("failed to update video job", err);
-  }
-};
-
-const makeProgressWriter = (jobId) => {
-  let lastPercent = -1;
-  let lastWrite = 0;
-  return (percent) => {
-    const rounded = Math.max(0, Math.min(100, Math.round(percent)));
-    const now = Date.now();
-    if (rounded === lastPercent || now - lastWrite < 2000) return;
-    lastPercent = rounded;
-    lastWrite = now;
-    void setJob(jobId, { progress: rounded });
-  };
-};
-
-const mapBand = ([from, to], percent) => from + (percent / 100) * (to - from);
-
-const mapJobError = (err) => {
-  const code = err?.message || "";
-  if (
-    code.includes("mwoauth-invalid-authorization") ||
-    code.includes("badtoken") ||
-    code.includes("assertuserfailed")
-  ) {
-    return "Your Commons session has expired. Please log in again and retry.";
-  }
-  if (code.includes("fileexists") || code.includes("duplicate")) {
-    return "A file with this name or content already exists on Commons.";
-  }
-  if (
-    code.includes("no video stream") ||
-    code.includes("invalid video duration") ||
-    code.includes("ffprobe exited")
-  ) {
-    return "This file does not appear to be a valid video.";
-  }
-  if (code.includes("ffmpeg exited")) {
-    return "Video processing failed.";
-  }
-  return code || "Video processing failed.";
-};
 
 const downloadSource = async (url, destination, onProgress) => {
   const response = await fetch(url, {
@@ -120,11 +73,26 @@ const downloadSource = async (url, destination, onProgress) => {
 export async function runVideoJob(jobId) {
   await connectDB();
   const job = await VideoJobModel.findById(jobId);
-  if (!job || !["queued", "downloading"].includes(job.status)) return;
+  if (!job || !["queued", "downloading"].includes(job.status)) {
+    logger.warn("skipping ineligible job", {
+      jobId: String(jobId),
+      status: job?.status,
+    });
+    return;
+  }
 
+  const log = logger.child({ jobId: String(job._id) });
+  const startedAt = Date.now();
   const tempDir = path.join(JOBS_TMP_DIR, String(job._id));
   const writeProgress = makeProgressWriter(job._id);
   let success = false;
+
+  log.info("video job started", {
+    filename: job.target.filename,
+    provider: job.target.provider,
+    sourceType: job.sourceType,
+    userId: String(job.user),
+  });
 
   try {
     ensureTmpDirs();
@@ -152,6 +120,11 @@ export async function runVideoJob(jobId) {
       );
     }
     const probe = await ffprobeFile(inputPath);
+    log.debug("probe complete", {
+      durationSec: probe?.durationSec,
+      width: probe?.width,
+      height: probe?.height,
+    });
 
     // 2. process with a single ffmpeg invocation
     const outputPath = path.join(tempDir, "output.webm");
@@ -161,6 +134,7 @@ export async function runVideoJob(jobId) {
       ops: job.ops,
       probe,
     });
+    log.info("ffmpeg strategy chosen", { strategy, outputDurationSec });
     await setJob(job._id, {
       status: "processing",
       stage: strategy === "copy" ? "remuxing" : "encoding",
@@ -184,9 +158,7 @@ export async function runVideoJob(jobId) {
       await fs.promises.mkdir(DRY_RUN_DIR, { recursive: true });
       const dryRunPath = path.join(DRY_RUN_DIR, `${job._id}.webm`);
       await fs.promises.rename(outputPath, dryRunPath);
-      console.log(
-        `DRY RUN: job ${job._id} finished, output kept at ${dryRunPath} (nothing uploaded)`
-      );
+      log.info("dry run complete, skipping upload", { dryRunPath });
     } else {
       const user = await UserModel.findById(job.user);
       const baseUrl =
@@ -205,6 +177,7 @@ export async function runVideoJob(jobId) {
         comment: job.target.comment,
         filePath: outputPath,
         onProgress: (percent) => writeProgress(mapBand(UPLOAD_BAND, percent)),
+        onPoll: makeHeartbeat(job._id),
         onStage: (stage) => {
           if (stage === "publishing") {
             void setJob(job._id, { status: "publishing", stage, progress: 95 });
@@ -227,37 +200,17 @@ export async function runVideoJob(jobId) {
 
     if (structured) {
       const user = await UserModel.findById(job.user);
-      const token = user?.wikimediaToken;
-      let mid = null;
-      try {
-        if (!token) throw new Error("mwoauth-invalid-authorization");
-        await setJob(job._id, {
-          status: "publishing",
-          stage: "writing structured data",
-          progress: SDC_PROGRESS,
-        });
-        mid = await fetchMediaInfoEntityId(
-          COMMONS_BASE_URL,
-          token,
-          job.target.filename
-        );
-        if (!mid) throw new Error("no-such-entity");
-        await writeStructuredData(COMMONS_BASE_URL, token, {
-          entityId: mid,
-          data: structured,
-          summary: "Structured data from the Image Annotation Tool upload wizard",
-        });
-        sdc = { ok: true, mid, at: new Date() };
-      } catch (err) {
-        console.log("sdc write failed", err);
-        sdc = {
-          ok: false,
-          mid,
-          error: err?.message || "sdc write failed",
-          info: err?.info || "",
-          at: new Date(),
-        };
-      }
+      await setJob(job._id, {
+        status: "publishing",
+        stage: "writing structured data",
+        progress: SDC_PROGRESS,
+      });
+      sdc = await writeSdcRecord(COMMONS_BASE_URL, user?.wikimediaToken, {
+        filename: job.target.filename,
+        metadata: job.metadata,
+        summary: "Structured data from the Image Annotation Tool upload wizard",
+        log,
+      });
       writeProgress(99);
     }
 
@@ -277,7 +230,7 @@ export async function runVideoJob(jobId) {
           });
         }
       } catch (err) {
-        console.log("Error saving upload to db", err);
+        log.warn("video upload record failed", { descriptionurl, err });
       }
     }
     await setJob(job._id, {
@@ -288,8 +241,12 @@ export async function runVideoJob(jobId) {
       sdc,
     });
     success = true;
+    log.info("video job done", {
+      durationMs: Date.now() - startedAt,
+      descriptionurl,
+    });
   } catch (err) {
-    console.log("video job failed", err);
+    log.error("video job failed", { durationMs: Date.now() - startedAt, err });
     await setJob(job._id, {
       status: "error",
       error: mapJobError(err),
@@ -304,72 +261,6 @@ export async function runVideoJob(jobId) {
         .rm(tempDir, { recursive: true, force: true })
         .catch(() => {});
     }
-    void startNextQueuedJob();
+    void startNextQueuedJob("video");
   }
 }
-
-export async function startNextQueuedJob() {
-  try {
-    await connectDB();
-    const activeCount = await VideoJobModel.countDocuments({
-      status: { $in: RUNNING_STATUSES },
-    });
-    if (activeCount >= MAX_CONCURRENT_VIDEO_JOBS) return false;
-    const next = await VideoJobModel.findOneAndUpdate(
-      { status: "queued" },
-      { $set: { status: "downloading", stage: "starting" } },
-      { sort: { createdAt: 1 }, new: true }
-    );
-    if (!next) return false;
-    void runVideoJob(next._id);
-    return true;
-  } catch (err) {
-    console.log("failed to schedule next video job", err);
-    return false;
-  }
-}
-
-export const recoverStaleJobs = async (maxAgeMs = STALE_JOB_MS) => {
-  try {
-    await connectDB();
-    await VideoJobModel.updateMany(
-      {
-        status: { $in: RUNNING_STATUSES },
-        updatedAt: { $lt: new Date(Date.now() - maxAgeMs) },
-      },
-      {
-        $set: {
-          status: "error",
-          error: "The job was interrupted by a server restart. Please retry.",
-        },
-      }
-    );
-  } catch (err) {
-    console.log("failed to recover stale video jobs", err);
-  }
-};
-
-export const sweepTempFiles = async () => {
-  try {
-    const now = Date.now();
-    for (const dir of [UPLOADS_TMP_DIR, JOBS_TMP_DIR, DRY_RUN_DIR]) {
-      const entries = await fs.promises.readdir(dir).catch(() => []);
-      for (const entry of entries) {
-        const entryPath = path.join(dir, entry);
-        const stat = await fs.promises.stat(entryPath).catch(() => null);
-        if (!stat || now - stat.mtimeMs < SWEEP_MAX_AGE_MS) continue;
-        if (dir === JOBS_TMP_DIR) {
-          const job = await VideoJobModel.findById(entry).catch(() => null);
-          if (job && RUNNING_STATUSES.concat("queued").includes(job.status)) {
-            continue;
-          }
-        }
-        await fs.promises
-          .rm(entryPath, { recursive: true, force: true })
-          .catch(() => {});
-      }
-    }
-  } catch (err) {
-    console.log("failed to sweep video temp files", err);
-  }
-};

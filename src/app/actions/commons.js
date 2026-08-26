@@ -5,6 +5,9 @@ import UserModel from "../models/User";
 import connectDB from "../api/lib/connectDB";
 import { updateArticleText } from "../api/utils/uploadUtils";
 import { FALLBACK_CAPTION_LANGUAGES } from "../config/constants";
+import { createLogger } from "../../lib/logger.js";
+
+const log = createLogger("action.commons");
 
 const PLAYER_IMAGE_WIDTH = 1280;
 const COMMONS_BASE_URL = "https://commons.wikimedia.org/w/api.php";
@@ -29,7 +32,7 @@ export const fetchCommonsImage = async (fileName) => {
     page.wikiSource = COMMONS_BASE_URL.split("/w/api.php")[0];
 
   } catch (err) {
-    console.log(err);
+    log.warn("commons image lookup failed", { fileName, err });
   }
 
   if (!page || page.missing) {
@@ -48,7 +51,7 @@ export const fetchCommonsImage = async (fileName) => {
         return null;
       }
     } catch (err) {
-      console.log(err);
+      log.warn("nccommons image lookup failed", { fileName, err });
       return null
     }
   }
@@ -73,7 +76,7 @@ export const fetchVideoDerivatives = async (fileName, wikiSource) => {
     const data = await response.json();
     return data?.query?.pages?.[0]?.videoinfo?.[0]?.derivatives || [];
   } catch (err) {
-    console.log(err);
+    log.warn("video derivatives fetch failed", { fileName, err });
     return [];
   }
 };
@@ -199,7 +202,7 @@ export const searchCommonsCategories = async (search, provider = "commons") => {
     lookupSet(key, results, CATEGORY_CACHE_TTL_MS);
     return results;
   } catch (err) {
-    console.log(err);
+    log.warn("category search failed", { provider, err });
     return [];
   }
 };
@@ -223,7 +226,7 @@ export const fetchCommonsLanguages = async () => {
     lookupSet(key, languages, LANGUAGE_CACHE_TTL_MS);
     return languages;
   } catch (err) {
-    console.log(err);
+    log.warn("language list fetch failed", { err });
     return FALLBACK_CAPTION_LANGUAGES;
   }
 };
@@ -253,7 +256,7 @@ export const searchCommonsLanguages = async (search) => {
     lookupSet(key, results, LANGUAGE_CACHE_TTL_MS);
     return results;
   } catch (err) {
-    console.log(err);
+    log.warn("language search failed", { err });
     return [];
   }
 };
@@ -273,7 +276,7 @@ export const previewWikitext = async (text, provider = "commons") => {
     const data = await response.json();
     return data?.parse?.text || "";
   } catch (err) {
-    console.log(err);
+    log.warn("wikitext preview failed", { provider, err });
     return "";
   }
 };

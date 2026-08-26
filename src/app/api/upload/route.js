@@ -4,29 +4,53 @@ import fs from "fs";
 import { uploadFileToCommons } from "../utils/uploadUtils";
 import UserModel from "../../models/User";
 import ImageUploadModel from "../../models/ImageUpload";
+import { createLogger } from "../../../lib/logger.js";
+
+const log = createLogger("api.upload");
 
 const COMMONS_BASE_URL = process.env.COMMONS_API_URL || "https://commons.wikimedia.org/w/api.php";
 const NCCOMMONS_BASE_URL = "https://nccommons.org/w/api.php";
 
 const generateRandomId = () => Math.random().toString(36).substring(7);
 
+// overwrite path is still single-shot, so it keeps a 100 MB cap
+const MAX_OVERWRITE_BYTES = 100 * 1024 * 1024;
+
 export const POST = async (req, res) => {
   const appUserId = req.cookies.get("app-user-id")?.value;
 
-  const user = await UserModel.findById(appUserId);
+  const user = appUserId ? await UserModel.findById(appUserId) : null;
+  if (!user) {
+    log.warn("overwrite upload unauthorized");
+    return NextResponse.json({ error: "not_authenticated" }, { status: 401 });
+  }
 
   const data = await req.formData();
   const filename = data.get("filename");
   const text = data.get("text");
   const file = data.get("file");
+  if (
+    !file ||
+    typeof file.arrayBuffer !== "function" ||
+    file.size > MAX_OVERWRITE_BYTES
+  ) {
+    log.warn("overwrite upload rejected: file too large", {
+      size: file?.size,
+    });
+    return NextResponse.json({ error: "file_too_large" }, { status: 413 });
+  }
   const comment = data.get("comment");
   const provider = data.get("provider");
   const fileId = generateRandomId();
   const fileBuffer = Buffer.from(await file.arrayBuffer());
 
   const fileLocation = `./${fileId}.${filename.split(".").pop()}`;
-  console.log({ fileLocation, filename, text, provider });
-  console.log({ fileBuffer });
+  log.info("overwrite upload started", {
+    filename,
+    provider,
+    size: file.size,
+    userId: String(user._id),
+  });
   await fs.promises.writeFile(fileLocation, fileBuffer);
   // wait 500ms
   await new Promise((resolve) => setTimeout(resolve, 200));
@@ -37,13 +61,19 @@ export const POST = async (req, res) => {
     provider === "nccommons" ? user.nccommonsToken : user.wikimediaToken;
   const fileStream = fs.createReadStream(fileLocation);
 
-  // return NextResponse.json({ filename, text, comment, provider });
-  const response = await uploadFileToCommons(baseUrl, token, {
-    filename,
-    text,
-    comment,
-    file: fileStream,
-  });
+  let response;
+  try {
+    response = await uploadFileToCommons(baseUrl, token, {
+      filename,
+      text,
+      comment,
+      file: fileStream,
+    });
+  } catch (err) {
+    log.error("overwrite upload failed", { filename, provider, err });
+    await fs.promises.unlink(fileLocation).catch(() => {});
+    return NextResponse.json({ error: "upload_failed" }, { status: 500 });
+  }
   if (response?.imageinfo?.descriptionurl) {
     try {
       const existingUpload = await ImageUploadModel.findOne({
@@ -59,7 +89,7 @@ export const POST = async (req, res) => {
         });
       }
     } catch (err) {
-      console.log("Error saving uplaod to db", err);
+      log.warn("failed to save upload record", { filename, err });
     }
   }
 

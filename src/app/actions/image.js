@@ -1,9 +1,12 @@
 "use server";
 
+import fs from "fs";
+import path from "path";
 import { cookies } from "next/headers";
 import connectDB from "../api/lib/connectDB";
 import UserModel from "../models/User";
 import ImageUploadModel from "../models/ImageUpload";
+import VideoJobModel from "../models/VideoJob";
 import { validateImagePublishRequest } from "../utils/imagePublishRequest.js";
 import {
   buildStructuredData,
@@ -14,12 +17,13 @@ import {
   fetchMediaInfoEntityId,
   writeStructuredData,
 } from "../api/utils/sdcUtils.js";
-import { uploadFileToCommons } from "../api/utils/uploadUtils.js";
+import { UPLOADS_TMP_DIR } from "../../lib/videoTmp.js";
+import { createLogger } from "../../lib/logger.js";
+
+const log = createLogger("action.image");
 
 const COMMONS_API_URL =
   process.env.COMMONS_API_URL || "https://commons.wikimedia.org/w/api.php";
-const NCCOMMONS_API_URL =
-  process.env.NCCOMMONS_API_URL || "https://nccommons.org/w/api.php";
 
 const SDC_SUMMARY = "Structured data from the Image Annotation Tool upload wizard";
 
@@ -29,49 +33,43 @@ const requireUser = async () => {
   return UserModel.findById(appUserId);
 };
 
-// non-fatal: the file is already public, record the failure and offer a retry
-const writeSdc = async (token, { filename, metadata }) => {
-  const data = buildStructuredData(metadata);
-  if (!data) return null;
-  try {
-    const mid = await fetchMediaInfoEntityId(COMMONS_API_URL, token, filename);
-    if (!mid) throw new Error("MediaInfo id not found after upload");
-    await writeStructuredData(COMMONS_API_URL, token, {
-      entityId: mid,
-      data,
-      summary: SDC_SUMMARY,
-    });
-    return { ok: true, mid, at: new Date() };
-  } catch (err) {
-    console.log("image sdc write failed", err);
-    return {
-      ok: false,
-      mid: null,
-      error: err?.message || "sdc write failed",
-      info: err?.info || "",
-      at: new Date(),
-    };
-  }
-};
-
-// Synchronous publish for the image wizard. No job/worker like video, one call
-// uploads the file, writes the page text and the structured data.
-export const publishImage = async (formData) => {
+// Queues an image publish for the upload worker (src/workers/imageJobRunner.mjs)
+// instead of uploading inline: a >95MB Commons publish can hold a request open
+// for many minutes, which proxies time out. The rendered file arrives via
+// /api/image/upload-chunk; the action only gets the id of the assembled temp
+// file, validates everything, and creates the job. No per-user job limit.
+export const createImageJob = async (formData) => {
   await connectDB();
 
   const user = await requireUser();
   if (!user) return { error: "not_authenticated" };
 
-  const file = formData.get("file");
-  if (!file || typeof file.arrayBuffer !== "function") {
+  const chunkUploadId = String(formData.get("uploadId") || "");
+  if (!/^[a-f0-9]{32}$/.test(chunkUploadId)) {
     return { error: "invalid_file" };
   }
+  const filePath = path.join(UPLOADS_TMP_DIR, path.basename(chunkUploadId));
+  const stat = await fs.promises.stat(filePath).catch(() => null);
+  if (!stat || !stat.size) {
+    return { error: "invalid_file" };
+  }
+
+  // a rejected render is useless; don't leave it for the sweeper. On success
+  // the job owns the file (the runner moves it into its temp dir).
+  const fail = async (result) => {
+    log.warn("image job rejected", {
+      reason: result?.error || "unknown",
+      userId: String(user._id),
+    });
+    await fs.promises.unlink(filePath).catch(() => {});
+    return result;
+  };
 
   let metadata;
   try {
     metadata = JSON.parse(String(formData.get("metadata") || ""));
   } catch {
-    return { error: "invalid_metadata", fields: [] };
+    return fail({ error: "invalid_metadata", fields: [] });
   }
 
   const provider =
@@ -82,7 +80,7 @@ export const publishImage = async (formData) => {
   const validated = validateImagePublishRequest({
     metadata,
     extension: formData.get("extension"),
-    fileSize: file.size,
+    fileSize: stat.size,
     provider,
     textEdited: formData.get("textEdited") === "true",
     text: formData.get("text"),
@@ -91,61 +89,72 @@ export const publishImage = async (formData) => {
     otherVersions: formData.get("otherVersions"),
     username: profile?.username || profile?.name || user.username || "",
   });
-  if (!validated.ok) return validated;
+  if (!validated.ok) return fail(validated);
   const { value } = validated;
 
   const token =
     provider === "nccommons" ? user.nccommonsToken : user.wikimediaToken;
-  if (!token) return { error: "not_authenticated" };
+  if (!token) return fail({ error: "not_authenticated" });
 
-  const baseUrl = provider === "nccommons" ? NCCOMMONS_API_URL : COMMONS_API_URL;
-
-  let upload;
+  let job;
   try {
-    upload = await uploadFileToCommons(baseUrl, token, {
-      filename: value.filename,
-      text: value.text,
-      comment: value.comment,
-      file,
+    job = await VideoJobModel.create({
+      kind: "image",
+      status: "queued",
+      sourceType: "device",
+      deviceUploadId: chunkUploadId,
+      target: {
+        filename: value.filename,
+        text: value.text,
+        comment: value.comment,
+        provider,
+        wikiSource: value.wikiSource,
+      },
+      metadata: value.metadata,
+      user: user._id,
     });
   } catch (err) {
-    return { error: err?.message || "upload_failed" };
+    if (err?.name === "ValidationError") {
+      return fail({ error: "invalid_metadata", fields: [] });
+    }
+    throw err;
   }
-  const descriptionurl = upload?.imageinfo?.descriptionurl;
-  if (!descriptionurl) return { error: "upload_failed" };
 
-  // SDC is Commons-only, NC Commons has no WikibaseMediaInfo
-  const sdc =
-    provider === "commons"
-      ? await writeSdc(token, { filename: value.filename, metadata: value.metadata })
-      : null;
+  log.info("image job created", {
+    jobId: String(job._id),
+    userId: String(user._id),
+    provider,
+    filename: value.filename,
+    fileSize: stat.size,
+  });
+  return { jobId: String(job._id) };
+};
 
-  let uploadId = null;
-  try {
-    const doc = await ImageUploadModel.findOneAndUpdate(
-      { url: descriptionurl },
-      {
-        $set: {
-          fileName: value.filename,
-          provider,
-          uploadedBy: user._id,
-          metadata: value.metadata,
-          sdc,
-        },
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-    uploadId = String(doc._id);
-  } catch (err) {
-    // bookkeeping only, the upload itself succeeded
-    console.log("image upload record failed", err);
+export const getImageJobStatus = async (jobId) => {
+  await connectDB();
+
+  const appUserId = (await cookies()).get("app-user-id")?.value;
+  if (!appUserId) return null;
+  if (!/^[a-f0-9]{24}$/.test(String(jobId || ""))) return null;
+
+  const job = await VideoJobModel.findById(jobId);
+  if (!job || job.kind !== "image" || String(job.user) !== String(appUserId)) {
+    return null;
   }
 
   return {
-    ok: true,
-    descriptionurl,
-    sdc: sdc ? { ok: !!sdc.ok, error: sdc.error || "" } : null,
-    uploadId,
+    status: job.status,
+    stage: job.stage,
+    progress: job.progress,
+    error: job.error,
+    // uploadId is the ImageUpload doc id, which the SDC retry needs
+    result: job.result?.descriptionurl
+      ? {
+          descriptionurl: job.result.descriptionurl,
+          uploadId: job.result.uploadId || null,
+        }
+      : null,
+    sdc: job.sdc ? { ok: !!job.sdc.ok, error: job.sdc.error || "" } : null,
   };
 };
 
@@ -191,7 +200,7 @@ export const retryImageStructuredData = async (uploadId) => {
     );
     return { ok: true };
   } catch (err) {
-    console.log("image sdc retry failed", err);
+    log.warn("image sdc retry failed", { uploadId: String(uploadId), err });
     await ImageUploadModel.updateOne(
       { _id: doc._id },
       {

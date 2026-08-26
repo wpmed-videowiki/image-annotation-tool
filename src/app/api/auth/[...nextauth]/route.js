@@ -2,6 +2,9 @@ import NextAuth from "next-auth";
 import WikimediaProvider from "next-auth/providers/wikimedia";
 import connectDB from "../../lib/connectDB";
 import UserModel from "../../../models/User";
+import { createLogger } from "../../../../lib/logger.js";
+
+const log = createLogger("api.auth");
 
 const providers = [
   WikimediaProvider({
@@ -74,9 +77,16 @@ const handler = async (req, res) => {
             await UserModel.findByIdAndUpdate(appUserId, {
               $set: update,
             });
+            log.info("provider linked", { provider, userId: appUserId });
           }
         } catch (err) {
-          console.error(err);
+          // serialized + scrubbed: a raw mongoose error here can embed the
+          // OAuth token value in its message
+          log.error("sign-in user update failed", {
+            provider: data?.account?.provider,
+            userId: appUserId,
+            err,
+          });
         }
         return true;
       },
@@ -128,6 +138,16 @@ const handler = async (req, res) => {
           update.nccommonsTokenExpiresAt = null;
         }
         if (Object.keys(update).length) {
+          log.info("expired provider tokens cleared", {
+            userId: appUserId,
+            providers: [
+              ...new Set(
+                Object.keys(update).map((key) =>
+                  key.replace(/(Id|Profile|Token|RefreshToken|TokenExpiresAt)$/, "")
+                )
+              ),
+            ],
+          });
           user = await UserModel.findByIdAndUpdate(
             appUserId,
             {

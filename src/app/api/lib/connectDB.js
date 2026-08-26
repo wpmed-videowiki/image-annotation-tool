@@ -1,4 +1,7 @@
 import mongoose from "mongoose";
+import { createLogger } from "../../../lib/logger.js";
+
+const log = createLogger("db");
 
 const DATABASE_URL = process.env.DATABASE_URL;
 
@@ -20,6 +23,19 @@ async function connectDB() {
   }
 
   if (!cached.promise) {
+    // guard on the global cache object - a module-level flag would not
+    // survive Next dev hot reloads and would stack duplicate listeners
+    if (!cached.listenersAttached) {
+      cached.listenersAttached = true;
+      mongoose.connection.on("connected", () => log.info("mongoose connected"));
+      mongoose.connection.on("error", (err) =>
+        log.error("mongoose connection error", { err })
+      );
+      mongoose.connection.on("disconnected", () =>
+        log.warn("mongoose disconnected")
+      );
+    }
+
     const opts = {
       bufferCommands: false,
     };

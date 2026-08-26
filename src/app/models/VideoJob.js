@@ -4,8 +4,16 @@ import UploadMetadataSchema from "./uploadMetadataSchema.js";
 
 const Schema = mongoose.Schema;
 
+// Despite the name, this collection holds every upload job; `kind`
+// discriminates. Docs that predate the field are video jobs.
 const VideoJobSchema = new Schema(
   {
+    kind: {
+      type: String,
+      enum: ["video", "image"],
+      default: "video",
+      index: true,
+    },
     status: {
       type: String,
       enum: [
@@ -22,7 +30,13 @@ const VideoJobSchema = new Schema(
     },
     stage: { type: String, default: "" },
     progress: { type: Number, default: 0 },
-    ops: { type: Object, required: true }, // { rotation, trim, crop, mute }
+    // { rotation, trim, crop, mute }; image jobs carry no ops
+    ops: {
+      type: Object,
+      required: function () {
+        return this.kind !== "image";
+      },
+    },
     sourceType: { type: String, enum: ["commons", "device"], required: true },
     sourceUrl: { type: String, default: "" },
     deviceUploadId: { type: String, default: "" },
@@ -41,6 +55,9 @@ const VideoJobSchema = new Schema(
   },
   { timestamps: true }
 );
+
+// the worker's claim query: queued jobs of one kind, oldest first
+VideoJobSchema.index({ status: 1, kind: 1, createdAt: 1 });
 
 const VideoJobModel =
   mongoose.models.VideoJob || mongoose.model("VideoJob", VideoJobSchema);

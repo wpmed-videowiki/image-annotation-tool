@@ -6,6 +6,9 @@ import ImageUploadModel from "../models/ImageUpload";
 import UserModel from "../models/User";
 import { ALL_WIKIS } from "../config/allWikis";
 import { revalidatePath } from "next/cache";
+import { createLogger } from "../../lib/logger.js";
+
+const log = createLogger("action.stats");
 const { connectRabbitMQ, publishers } = require("../../workers/rabbitmq");
 
 const PER_PAGE = 100;
@@ -71,7 +74,7 @@ export async function getFileUsageOnWiki(
             callback(null, { ...item, views });
           })
           .catch((err) => {
-            console.log({ err });
+            log.warn("stats fetch failed", { err });
             callback(null, { ...item, views: 0 });
           });
       };
