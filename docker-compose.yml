@@ -18,6 +18,8 @@ services:
     restart: unless-stopped
     environment:
       VIDEO_TMP_DIR: /video-tmp
+      # bare node does not set NODE_ENV, so force structured log output
+      LOG_FORMAT: json
     volumes:
       - video-tmp:/video-tmp
   mongodb:
