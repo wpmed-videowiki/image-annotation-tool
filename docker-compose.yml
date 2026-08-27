@@ -14,6 +14,11 @@ services:
     command: npm run start:worker
     restart: unless-stopped
   image-annotation-tool-video-worker:
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 4g
     image: image-annotation-tool-video-worker:latest
     restart: unless-stopped
     environment:
