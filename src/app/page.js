@@ -136,6 +136,7 @@ export default function Home() {
 
   useEffect(() => {
     async function init() {
+      await getAppUser();
       const fileName = searchParams.get("file");
       if (!fileName || !containerRef.current) {
         return;
@@ -147,7 +148,6 @@ export default function Home() {
         window.location.href = newUrl.href;
         return;
       }
-      await getAppUser();
       const page = await fetchCommonsImage(
         searchParams.get("file"),
         searchParams.get("wikiSource")
