@@ -1,18 +1,16 @@
 "use server";
 
-import { cookies } from "next/headers";
+import connectDB from "../api/lib/connectDB";
 import UserModel from "../models/User";
+import { getSessionUser, unauthenticated } from "../lib/session";
 
-export async function updateUserDefaultUploadOption(
-  defaultUploadOption = "new"
-) {
-  const userId = (await cookies()).get("app-user-id");
-  if (userId?.value) {
-    await UserModel.findByIdAndUpdate(
-      userId.value,
-      {
-        defaultUploadOption,
-      },
-    );
-  }
+export async function updateUserDefaultUploadOption(defaultUploadOption = "new") {
+  const user = await getSessionUser();
+  if (!user) return unauthenticated();
+  await connectDB();
+  await UserModel.updateOne(
+    { _id: user._id },
+    { $set: { defaultUploadOption: defaultUploadOption === "overwrite" ? "overwrite" : "new" } }
+  );
+  return { ok: true };
 }

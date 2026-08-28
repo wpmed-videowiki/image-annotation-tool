@@ -2,9 +2,8 @@ import { useEffect, useState } from "react";
 import { fetchPageSource, updatePageSource } from "../actions/commons";
 import { replaceTemplateWithFile } from "../utils/replaceTemplateWithFile";
 import { Box, Button, Stack, TextField, Typography } from "@mui/material";
-import { useSession } from "next-auth/react";
 import { Login } from "@mui/icons-material";
-import { popupCenter } from "../utils/popupTools";
+import { loginHref, useAuth } from "./AuthProvider";
 import { toast } from "react-toastify";
 import { useTranslations } from "next-intl";
 
@@ -13,13 +12,13 @@ const UpdateArticleSourceForm = ({
   originalFileName,
   fileName,
 }) => {
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const t = useTranslations();
 
   const [originalPageSource, setOriginalPageSource] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const provider = wikiSource.includes("mdwiki.org") ? "nccommons" : "commons";
+  const provider = wikiSource.includes("mdwiki.org") ? "mdwiki" : "wikimedia";
 
   const onGetPageSource = async () => {
     const page = await fetchPageSource(wikiSource);
@@ -37,10 +36,12 @@ const UpdateArticleSourceForm = ({
     setLoading(true);
     // update page source
     try {
-      await updatePageSource(wikiSource, originalPageSource);
-      toast.success(t("UpdateArticleSourceForm_update_success"));
+      const result = await updatePageSource(wikiSource, originalPageSource);
+      if (result?.error) toast.error(t("UpdateArticleSourceForm_update_failed"));
+      else toast.success(t("UpdateArticleSourceForm_update_success"));
     } catch (err) {
       console.log(err);
+      toast.error(t("UpdateArticleSourceForm_update_failed"));
     }
     setLoading(false);
   };
@@ -49,53 +50,23 @@ const UpdateArticleSourceForm = ({
     onGetPageSource();
   }, [wikiSource]);
 
-  switch (provider) {
-    case "commons":
-      if (!session?.user?.wikimediaId) {
-        return (
-          <Stack spacing={2}>
-            <Typography variant="body2">
-              {t("UpdateArticleSourceForm_sing_in_to_wikimedia_to_update")}
-            </Typography>
-            <Button
-              variant="contained"
-              color="primary"
-              sx={{
-                minWidth: 200,
-              }}
-              startIcon={<Login />}
-              onClick={() => popupCenter("/login?provider=wikimedia", "Login")}
-            >
-              {t("UpdateArticleSourceForm_login_to_wikimedia")}
-            </Button>
-          </Stack>
-        );
-      }
-      break;
-    case "nccommons":
-      if (!session?.user?.mdwikiId) {
-        return (
-          <Stack spacing={2}>
-            <Typography variant="body2">
-              {t("UpdateArticleSourceForm_sing_in_to_mdwiki_to_update")}
-            </Typography>
-            <Button
-              variant="contained"
-              color="primary"
-              sx={{
-                minWidth: 200,
-              }}
-              startIcon={<Login />}
-              onClick={() => popupCenter("/login?provider=mdwiki", "Login")}
-            >
-              {t("UpdateArticleSourceForm_login_to_mdwiki")}
-            </Button>
-          </Stack>
-        );
-      }
-      break;
-    default:
-      break;
+  if (provider === "mdwiki" && !user?.linked?.mdwiki) {
+    return (
+      <Stack spacing={2}>
+        <Typography variant="body2">
+          {t("UpdateArticleSourceForm_sing_in_to_mdwiki_to_update")}
+        </Typography>
+        <Button
+          variant="contained"
+          color="primary"
+          sx={{ minWidth: 200 }}
+          startIcon={<Login />}
+          href={loginHref("mdwiki")}
+        >
+          {t("UpdateArticleSourceForm_login_to_mdwiki")}
+        </Button>
+      </Stack>
+    );
   }
 
   return (

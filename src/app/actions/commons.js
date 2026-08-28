@@ -1,9 +1,10 @@
 "use server";
 
 import { cookies } from "next/headers";
-import UserModel from "../models/User";
-import connectDB from "../api/lib/connectDB";
 import { updateArticleText } from "../api/utils/uploadUtils";
+import { authErrorResult, getSessionUser, unauthenticated } from "../lib/session";
+import { getProviderToken } from "../../lib/auth/tokens.js";
+import { providerForWikiSource } from "../../lib/auth/oauth.js";
 import { FALLBACK_CAPTION_LANGUAGES } from "../config/constants";
 import { createLogger } from "../../lib/logger.js";
 
@@ -122,19 +123,23 @@ export const fetchPageSource = async (wikiSource) => {
 };
 
 export const updatePageSource = async (wikiSource, text) => {
-  await connectDB();
+  const user = await getSessionUser();
+  if (!user) return unauthenticated();
 
-  const appUserId = (await cookies()).get("app-user-id")?.value;
-  const user = await UserModel.findById(appUserId);
-
+  const provider = providerForWikiSource(wikiSource);
+  if (!provider) return { error: "invalid_source" };
   const baseUrl = `${wikiSource.split("/wiki/")[0]}/w/api.php`;
   const title = wikiSource.split("/wiki/")[1];
-  const token = baseUrl.includes("mdwiki.org")
-    ? user.mdwikiToken
-    : user.wikimediaToken;
 
-  const result = await updateArticleText(baseUrl, token, { title, text });
-  return result;
+  let token;
+  try {
+    token = await getProviderToken(user._id, provider);
+  } catch (err) {
+    const mapped = authErrorResult(err);
+    if (mapped) return mapped;
+    throw err;
+  }
+  return updateArticleText(baseUrl, token, { title, text });
 };
 
 export const uploadFile = async (formData) => {

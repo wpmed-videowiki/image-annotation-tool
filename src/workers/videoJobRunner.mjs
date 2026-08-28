@@ -5,7 +5,7 @@ import { pipeline } from "stream/promises";
 // note: explicit .js extensions so this module loads under bare Node
 import connectDB from "../app/api/lib/connectDB.js";
 import VideoJobModel from "../app/models/VideoJob.js";
-import UserModel from "../app/models/User.js";
+import { getProviderToken } from "../lib/auth/tokens.js";
 import ImageUploadModel from "../app/models/ImageUpload.js";
 import {
   buildFfmpegArgs,
@@ -160,12 +160,10 @@ export async function runVideoJob(jobId) {
       await fs.promises.rename(outputPath, dryRunPath);
       log.info("dry run complete, skipping upload", { dryRunPath });
     } else {
-      const user = await UserModel.findById(job.user);
       const baseUrl =
         provider === "nccommons" ? NCCOMMONS_BASE_URL : COMMONS_BASE_URL;
-      const token =
-        provider === "nccommons" ? user?.nccommonsToken : user?.wikimediaToken;
-      if (!token) throw new Error("mwoauth-invalid-authorization");
+      // fetched now, not at job creation: the encode may have taken hours
+      const token = await getProviderToken(job.user, provider);
       await setJob(job._id, {
         status: "uploading",
         stage: "uploading",
@@ -199,18 +197,25 @@ export async function runVideoJob(jobId) {
         : null;
 
     if (structured) {
-      const user = await UserModel.findById(job.user);
       await setJob(job._id, {
         status: "publishing",
         stage: "writing structured data",
         progress: SDC_PROGRESS,
       });
-      sdc = await writeSdcRecord(COMMONS_BASE_URL, user?.wikimediaToken, {
-        filename: job.target.filename,
-        metadata: job.metadata,
-        summary: "Structured data from the Image Annotation Tool upload wizard",
-        log,
-      });
+      let sdcToken = null;
+      try {
+        sdcToken = await getProviderToken(job.user, "wikimedia");
+      } catch (err) {
+        log.warn("sdc skipped, no usable token", { err });
+      }
+      sdc = sdcToken
+        ? await writeSdcRecord(COMMONS_BASE_URL, sdcToken, {
+            filename: job.target.filename,
+            metadata: job.metadata,
+            summary: "Structured data from the Image Annotation Tool upload wizard",
+            log,
+          })
+        : { ok: false, mid: null, error: "reauth_required", info: "", at: new Date() };
       writeProgress(99);
     }
 

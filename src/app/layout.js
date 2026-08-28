@@ -5,6 +5,7 @@ import { getLocale, getMessages } from "next-intl/server";
 import { NextIntlClientProvider } from "next-intl";
 import Header from "./components/Header";
 import { Box, CssBaseline } from "@mui/material";
+import { getCurrentUserSummary } from "./lib/session";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -20,10 +21,11 @@ export default async function RootLayout({ children }) {
   // Providing all messages to the client
   // side is the easiest way to get started
   const messages = await getMessages();
+  const user = await getCurrentUserSummary();
   return (
     <html lang={locale}>
       <body className={inter.className}>
-        <AppProviders>
+        <AppProviders user={user}>
           <NextIntlClientProvider messages={messages}>
             <main>
               <Header />

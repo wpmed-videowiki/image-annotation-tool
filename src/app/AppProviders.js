@@ -1,15 +1,15 @@
 "use client";
 
-import { SessionProvider } from "next-auth/react";
 import { Suspense } from "react";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { AuthProvider } from "./components/AuthProvider";
 
-export default function AppProviders({ children }) {
+export default function AppProviders({ user, children }) {
   return (
-    <SessionProvider>
+    <AuthProvider user={user}>
       <ToastContainer />
       <Suspense fallback="loading">{children}</Suspense>
-    </SessionProvider>
+    </AuthProvider>
   );
 }

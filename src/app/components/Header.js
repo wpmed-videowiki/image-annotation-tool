@@ -14,10 +14,10 @@ import {
   MenuItem,
   Select,
 } from "@mui/material";
-import { useSession } from "next-auth/react";
 import { useState } from "react";
-import { popupCenter } from "../utils/popupTools";
-import { logoutPlatform } from "../actions/auth";
+import { useRouter } from "next/navigation";
+import { loginHref, useAuth } from "./AuthProvider";
+import { logout, unlinkProvider } from "../actions/auth";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { SUPPORTED_LOCALE_LANGUAGES } from "../config/constants";
@@ -27,7 +27,8 @@ import OtherTools from "./OtherTools";
 const Header = () => {
   const [anchorElUser, setAnchorElUser] = useState(null);
 
-  const { data: session, update } = useSession();
+  const { user } = useAuth();
+  const router = useRouter();
   const t = useTranslations();
   const locale = useLocale();
 
@@ -44,9 +45,13 @@ const Header = () => {
     setAnchorElUser(null);
   };
 
-  const logout = async (provider) => {
-    await logoutPlatform(provider);
-    await update();
+  const onLogout = async () => {
+    await logout();
+    router.refresh();
+  };
+  const onUnlink = async (provider) => {
+    await unlinkProvider(provider);
+    router.refresh();
   };
 
   return (
@@ -118,7 +123,7 @@ const Header = () => {
               </Select>
               <Tooltip title="Open settings">
                 <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                  <Avatar>{session?.user.name?.slice(0, 1)}</Avatar>
+                  <Avatar>{user?.username?.slice(0, 1)}</Avatar>
                 </IconButton>
               </Tooltip>
               <Menu
@@ -137,57 +142,47 @@ const Header = () => {
                 open={Boolean(anchorElUser)}
                 onClose={handleCloseUserMenu}
               >
-                {session?.user.wikimediaId ? (
-                  <MenuItem onClick={() => logout("wikimedia")}>
+                {user ? (
+                  <MenuItem onClick={onLogout}>
                     <Typography textAlign="center">
-                      Wikimedia {t("logout")}
+                      {t("Header_logout", { username: user.username })}
                     </Typography>
                   </MenuItem>
                 ) : (
-                  <MenuItem
-                    onClick={() =>
-                      popupCenter("/login?provider=wikimedia", "Login")
-                    }
-                  >
+                  <MenuItem component="a" href={loginHref("wikimedia")}>
                     <Typography textAlign="center">
-                      Wikimedia {t("login")}
+                      {t("Login_with_wikimedia")}
                     </Typography>
                   </MenuItem>
                 )}
-                {session?.user.nccommonsId ? (
-                  <MenuItem onClick={() => logout("nccommons")}>
-                    <Typography textAlign="center">
-                      NC Commons {t("logout")}
-                    </Typography>
-                  </MenuItem>
-                ) : (
-                  <MenuItem
-                    onClick={() =>
-                      popupCenter("/login?provider=nccommons", "Login")
-                    }
-                  >
-                    <Typography textAlign="center">
-                      NC Commons {t("login")}
-                    </Typography>
-                  </MenuItem>
-                )}
-                {session?.user.mdwikiId ? (
-                  <MenuItem onClick={() => logout("mdwiki")}>
-                    <Typography textAlign="center">
-                      MD Wiki {t("logout")}
-                    </Typography>
-                  </MenuItem>
-                ) : (
-                  <MenuItem
-                    onClick={() =>
-                      popupCenter("/login?provider=mdwiki", "Login")
-                    }
-                  >
-                    <Typography textAlign="center">
-                      MD Wiki {t("login")}
-                    </Typography>
-                  </MenuItem>
-                )}
+                {user &&
+                  (user.linked.nccommons ? (
+                    <MenuItem onClick={() => onUnlink("nccommons")}>
+                      <Typography textAlign="center">
+                        NC Commons {t("Header_unlink")}
+                      </Typography>
+                    </MenuItem>
+                  ) : (
+                    <MenuItem component="a" href={loginHref("nccommons")}>
+                      <Typography textAlign="center">
+                        NC Commons {t("Header_link")}
+                      </Typography>
+                    </MenuItem>
+                  ))}
+                {user &&
+                  (user.linked.mdwiki ? (
+                    <MenuItem onClick={() => onUnlink("mdwiki")}>
+                      <Typography textAlign="center">
+                        MD Wiki {t("Header_unlink")}
+                      </Typography>
+                    </MenuItem>
+                  ) : (
+                    <MenuItem component="a" href={loginHref("mdwiki")}>
+                      <Typography textAlign="center">
+                        MD Wiki {t("Header_link")}
+                      </Typography>
+                    </MenuItem>
+                  ))}
               </Menu>
             </Stack>
           </Box>

@@ -18,7 +18,7 @@ import {
 } from "@mui/material";
 import { UploadFile } from "@mui/icons-material";
 import { useLocale, useTranslations } from "next-intl";
-import { useSession } from "next-auth/react";
+import { useAuth } from "../AuthProvider";
 
 import { buildFilePageWikitext } from "../../utils/commonsWikitext";
 import { buildFileName } from "../../utils/fileName";
@@ -71,7 +71,7 @@ const UploadWizardShell = ({
   const t = useTranslations("UploadWizard");
   const locale = useLocale();
   const theme = useTheme();
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const isCompact = useMediaQuery(theme.breakpoints.down("sm"));
 
   const [state, dispatch] = useReducer(
@@ -130,11 +130,10 @@ const UploadWizardShell = ({
     }
     setPublishError(null);
 
-    const profile =
+    const username =
       provider === "nccommons"
-        ? session?.user?.nccommonsProfile
-        : session?.user?.wikimediaProfile;
-    const username = profile?.username || profile?.name || "";
+        ? user?.linked?.nccommons?.username || ""
+        : user?.username || "";
 
     const result = await publishState.publish({
       filename: buildFileName(value.describe.title, extension),

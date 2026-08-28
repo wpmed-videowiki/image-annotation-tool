@@ -2,10 +2,10 @@
 
 import fs from "fs";
 import path from "path";
-import { cookies } from "next/headers";
 import connectDB from "../api/lib/connectDB";
-import UserModel from "../models/User";
 import VideoJobModel from "../models/VideoJob";
+import { authErrorResult, getSessionUser, unauthenticated } from "../lib/session";
+import { getProviderToken } from "../../lib/auth/tokens.js";
 import { UPLOADS_TMP_DIR } from "../../lib/videoTmp.js";
 import {
   hasBlockingError,
@@ -107,10 +107,8 @@ const buildTargetText = (payload, metadata, username) => {
 export const createVideoJob = async (payload) => {
   await connectDB();
 
-  const appUserId = (await cookies()).get("app-user-id")?.value;
-  if (!appUserId) return { error: "not_authenticated" };
-  const user = await UserModel.findById(appUserId);
-  if (!user) return { error: "not_authenticated" };
+  const user = await getSessionUser();
+  if (!user) return unauthenticated();
 
   const reject = (result) => {
     log.warn("video job rejected", {
@@ -149,9 +147,8 @@ export const createVideoJob = async (payload) => {
     }
     cleanMetadata = normalized.value;
     filename = `File:${cleanMetadata.describe.title}.webm`;
-    const profile =
-      provider === "nccommons" ? user.nccommonsProfile : user.wikimediaProfile;
-    const username = profile?.username || profile?.name || user.username || "";
+    const account = user.accounts[provider === "nccommons" ? "nccommons" : "wikimedia"];
+    const username = account?.profile?.username || account?.profile?.name || user.username || "";
     text = buildTargetText(payload, cleanMetadata, username);
     if (text === null) return reject({ error: "invalid_metadata", fields: [] });
   }
@@ -163,9 +160,14 @@ export const createVideoJob = async (payload) => {
   ) {
     return reject({ error: "invalid_filename" });
   }
-  const token =
-    provider === "nccommons" ? user.nccommonsToken : user.wikimediaToken;
-  if (!token) return reject({ error: "not_authenticated" });
+  try {
+    // validates the link now; the worker fetches a fresh token at upload time
+    await getProviderToken(user._id, provider);
+  } catch (err) {
+    const mapped = authErrorResult(err);
+    if (mapped) return reject(mapped);
+    throw err;
+  }
 
   const activeJobs = await VideoJobModel.countDocuments({
     user: user._id,
@@ -214,8 +216,9 @@ export const createVideoJob = async (payload) => {
 export const getVideoJobStatus = async (jobId) => {
   await connectDB();
 
-  const appUserId = (await cookies()).get("app-user-id")?.value;
-  if (!appUserId) return null;
+  const user = await getSessionUser();
+  if (!user) return null;
+  const appUserId = String(user._id);
   if (!/^[a-f0-9]{24}$/.test(String(jobId || ""))) return null;
 
   const job = await VideoJobModel.findById(jobId);
@@ -239,8 +242,9 @@ export const getVideoJobStatus = async (jobId) => {
 export const retryStructuredData = async (jobId) => {
   await connectDB();
 
-  const appUserId = (await cookies()).get("app-user-id")?.value;
-  if (!appUserId) return { error: "not_authenticated" };
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) return unauthenticated();
+  const appUserId = String(sessionUser._id);
   if (!/^[a-f0-9]{24}$/.test(String(jobId || ""))) return { error: "not_found" };
 
   const job = await VideoJobModel.findById(jobId);
@@ -251,9 +255,14 @@ export const retryStructuredData = async (jobId) => {
   const data = buildStructuredData(job.metadata);
   if (!data) return { error: "nothing_to_write" };
 
-  const user = await UserModel.findById(appUserId);
-  const token = user?.wikimediaToken;
-  if (!token) return { error: "not_authenticated" };
+  let token;
+  try {
+    token = await getProviderToken(appUserId, "wikimedia");
+  } catch (err) {
+    const mapped = authErrorResult(err);
+    if (mapped) return mapped;
+    throw err;
+  }
 
   try {
     const mid =
