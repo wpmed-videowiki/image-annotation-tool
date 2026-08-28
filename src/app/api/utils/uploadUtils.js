@@ -18,11 +18,27 @@ export const fetchCSRFToken = async (baseUrl, token) => {
       "User-Agent": process.env.USER_AGENT,
     },
   });
-  const jsonData = await data.json();
-  if (jsonData.error) {
+  let jsonData = null;
+  try {
+    jsonData = await data.json();
+  } catch {
+    jsonData = null;
+  }
+  if (jsonData?.error) {
     throw new Error(jsonData.error.code);
   }
-  return jsonData.query.tokens.csrftoken;
+  const csrf = jsonData?.query?.tokens?.csrftoken;
+  if (!csrf) {
+    // an expired/invalid bearer token comes back as a non-query body
+    // (e.g. {"httpCode":401,"httpReason":"Unauthorized"}) rather than {error}
+    const detail = jsonData?.message || jsonData?.httpReason || JSON.stringify(jsonData);
+    throw new Error(
+      data.status === 401 || data.status === 403
+        ? `mwoauth-invalid-authorization (HTTP ${data.status}: ${detail})`
+        : `csrf token request failed (HTTP ${data.status}: ${detail})`
+    );
+  }
+  return csrf;
 };
 
 export const updateArticleText = async (baseUrl, token, { title, text }) => {

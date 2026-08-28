@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import convert from "heic-convert";
 
-import connectDB from "../lib/connectDB";
-import UserModel from "../../models/User";
+import { getSessionUser } from "../../lib/session";
 import { MAX_HEIC_CONVERT_BYTES } from "../../config/constants";
 import { createLogger } from "../../../lib/logger.js";
 
@@ -11,12 +10,7 @@ const log = createLogger("api.convert-heic");
 // Browsers can't decode HEIC/HEIF, so convert to JPEG here before the editor
 // sees the file. heic-convert is WASM, no native deps.
 export const POST = async (req) => {
-  const appUserId = req.cookies.get("app-user-id")?.value;
-  if (!appUserId) {
-    return NextResponse.json({ error: "not_authenticated" }, { status: 401 });
-  }
-  await connectDB();
-  const user = await UserModel.findById(appUserId);
+  const user = await getSessionUser();
   if (!user) {
     return NextResponse.json({ error: "not_authenticated" }, { status: 401 });
   }

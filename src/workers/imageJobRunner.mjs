@@ -3,7 +3,7 @@ import path from "path";
 // note: explicit .js extensions so this module loads under bare Node
 import connectDB from "../app/api/lib/connectDB.js";
 import VideoJobModel from "../app/models/VideoJob.js";
-import UserModel from "../app/models/User.js";
+import { getProviderToken } from "../lib/auth/tokens.js";
 import ImageUploadModel from "../app/models/ImageUpload.js";
 import { uploadFileToCommonsChunked } from "./chunkedUploadUtils.mjs";
 import { writeSdcRecord } from "../app/api/utils/sdcWrite.js";
@@ -90,12 +90,9 @@ export async function runImageJob(jobId) {
 
     // 2. upload to Commons / NC Commons with a fresh token
     const provider = job.target.provider;
-    const user = await UserModel.findById(job.user);
     const baseUrl =
       provider === "nccommons" ? NCCOMMONS_BASE_URL : COMMONS_BASE_URL;
-    const token =
-      provider === "nccommons" ? user?.nccommonsToken : user?.wikimediaToken;
-    if (!token) throw new Error("mwoauth-invalid-authorization");
+    const token = await getProviderToken(job.user, provider);
 
     await setJob(job._id, {
       stage: "uploading",

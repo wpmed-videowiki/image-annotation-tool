@@ -29,11 +29,12 @@ import Header from "./components/Header";
 import SearchForm from "./components/SearchForm";
 import VideoFilePicker from "./components/VideoFilePicker";
 import ImageFilePicker from "./components/ImageFilePicker";
-import { getAppUser } from "./actions/auth";
 import { EMPTY_METADATA } from "./utils/uploadMetadata";
 import { normalizeCategoryName, parseLicenseTag } from "./utils/licenseMapping";
 import { useTranslations } from "next-intl";
-import { useSession } from "next-auth/react";
+import { toast } from "react-toastify";
+import { useAuth } from "./components/AuthProvider";
+import LoginScreen from "./components/LoginScreen";
 import dynamic from "next/dynamic";
 import "tui-image-editor/dist/tui-image-editor.css";
 
@@ -83,7 +84,7 @@ export default function Home() {
 
   const searchParams = useSearchParams();
   const t = useTranslations();
-  const { data: session } = useSession();
+  const { user } = useAuth();
 
   const [page, setPage] = useState();
   const [originalPageSource, setOriginalPageSource] = useState("");
@@ -114,13 +115,24 @@ export default function Home() {
       setImageUploadMode("new");
       return;
     }
-    if (session?.user?.defaultUploadOption) {
+    if (user?.defaultUploadOption) {
       appliedDefaultModeRef.current = true;
       setImageUploadMode(
-        session.user.defaultUploadOption === "overwrite" ? "overwrite" : "new"
+        user.defaultUploadOption === "overwrite" ? "overwrite" : "new"
       );
     }
-  }, [session?.user?.defaultUploadOption, fileName]);
+  }, [user?.defaultUploadOption, fileName]);
+
+  // surfaced by /api/auth/callback on failure
+  const authError = searchParams.get("authError");
+  useEffect(() => {
+    if (!authError) return;
+    const key = `Auth_error_${authError}`;
+    toast.error(t.has(key) ? t(key) : t("Auth_error_generic"));
+    const url = new URL(window.location.href);
+    url.searchParams.delete("authError");
+    window.history.replaceState({}, "", url.toString());
+  }, [authError]);
 
   // object URL for the device-image editors, they load from a URL not a File
   const deviceImageUrl = useMemo(
@@ -136,7 +148,7 @@ export default function Home() {
 
   useEffect(() => {
     async function init() {
-      await getAppUser();
+      if (!user) return;
       const fileName = searchParams.get("file");
       if (!fileName || !containerRef.current) {
         return;
@@ -195,7 +207,18 @@ export default function Home() {
       setAuthor(author);
     }
     init();
-  }, [fileName, containerRef.current]);
+  }, [fileName, containerRef.current, user]);
+
+  if (!user) {
+    return (
+      <div>
+        <Header />
+        <Container maxWidth="xl">
+          <LoginScreen />
+        </Container>
+      </div>
+    );
+  }
 
   if (!fileName && !deviceVideoFile && !deviceImageFile) {
     return (

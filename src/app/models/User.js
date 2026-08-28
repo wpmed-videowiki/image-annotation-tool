@@ -2,29 +2,29 @@ import mongoose from "mongoose";
 
 const Schema = mongoose.Schema;
 
+// One slot per wiki. `null` means "not linked". Tokens are only ever read
+// through src/lib/auth/tokens.js so refresh happens in one place.
+const AccountSchema = new Schema(
+  {
+    accessToken: { type: String, default: "" },
+    refreshToken: { type: String, default: "" },
+    expiresAt: { type: Number, default: 0 }, // ms since epoch
+    profile: { type: Object, default: {} },
+  },
+  { _id: false }
+);
+
 const UserSchema = new Schema(
   {
+    // OAuth `sub` from the Wikimedia profile; this is the identity
+    wikimediaId: { type: String, default: "", index: true },
     username: { type: String, default: "" },
     defaultUploadOption: { type: String, default: "new" },
-
-    wikimediaId: { type: String, default: "" },
-    wikimediaToken: { type: String, default: "" },
-    wikimediaRefreshToken: { type: String, default: "" },
-    wikimediaTokenExpiresAt: { type: Number, default: 0 },
-    wikimediaProfile: { type: Object, default: {} },
-
-    mdwikiId: { type: String, default: "" },
-    mdwikiToken: { type: String, default: "" },
-    mdwikiRefreshToken: { type: String, default: "" },
-    mdwikiTokenExpiresAt: { type: Number, default: 0 },
-    mdwikiProfile: { type: Object, default: {} },
-
-    nccommonsId: { type: String, default: "" },
-    nccommonsToken: { type: String, default: "" },
-    nccommonsRefreshToken: { type: String, default: "" },
-    nccommonsTokenExpiresAt: { type: Number, default: 0 },
-    nccommonsProfile: { type: Object, default: {} },
-    authenticated: { type: Boolean, default: false },
+    accounts: {
+      wikimedia: { type: AccountSchema, default: null },
+      nccommons: { type: AccountSchema, default: null },
+      mdwiki: { type: AccountSchema, default: null },
+    },
   },
   { timestamps: true }
 );

@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { exec } from "child_process";
 import fs from "fs";
 import { uploadFileToCommons } from "../utils/uploadUtils";
-import UserModel from "../../models/User";
 import ImageUploadModel from "../../models/ImageUpload";
+import { authErrorResult, getSessionUser } from "../../lib/session";
+import { getProviderToken } from "../../../lib/auth/tokens.js";
 import { createLogger } from "../../../lib/logger.js";
 
 const log = createLogger("api.upload");
@@ -16,10 +17,8 @@ const generateRandomId = () => Math.random().toString(36).substring(7);
 // overwrite path is still single-shot, so it keeps a 100 MB cap
 const MAX_OVERWRITE_BYTES = 100 * 1024 * 1024;
 
-export const POST = async (req, res) => {
-  const appUserId = req.cookies.get("app-user-id")?.value;
-
-  const user = appUserId ? await UserModel.findById(appUserId) : null;
+export const POST = async (req) => {
+  const user = await getSessionUser();
   if (!user) {
     log.warn("overwrite upload unauthorized");
     return NextResponse.json({ error: "not_authenticated" }, { status: 401 });
@@ -57,8 +56,17 @@ export const POST = async (req, res) => {
 
   const baseUrl =
     provider === "nccommons" ? NCCOMMONS_BASE_URL : COMMONS_BASE_URL;
-  const token =
-    provider === "nccommons" ? user.nccommonsToken : user.wikimediaToken;
+  let token;
+  try {
+    token = await getProviderToken(user._id, provider);
+  } catch (err) {
+    const mapped = authErrorResult(err);
+    if (mapped) {
+      await fs.promises.unlink(fileLocation).catch(() => {});
+      return NextResponse.json(mapped, { status: 401 });
+    }
+    throw err;
+  }
   const fileStream = fs.createReadStream(fileLocation);
 
   let response;

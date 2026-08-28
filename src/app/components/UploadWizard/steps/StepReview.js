@@ -1,7 +1,7 @@
 "use client";
 import { useMemo } from "react";
 import { Alert, Stack, TextField, Typography } from "@mui/material";
-import { useSession } from "next-auth/react";
+import { useAuth } from "../../AuthProvider";
 import { useTranslations } from "next-intl";
 
 import { buildFilePageWikitext } from "../../../utils/commonsWikitext";
@@ -16,13 +16,11 @@ const StepReview = ({ provider, otherVersions, publishState }) => {
   const t = useTranslations("UploadWizard");
   const state = useWizardState();
   const dispatch = useWizardDispatch();
-  const { data: session } = useSession();
-
-  const profile =
+  const { user } = useAuth();
+  const username =
     provider === "nccommons"
-      ? session?.user?.nccommonsProfile
-      : session?.user?.wikimediaProfile;
-  const username = profile?.username || profile?.name || "";
+      ? user?.linked?.nccommons?.username || ""
+      : user?.username || "";
 
   // same function the server uses, so the preview is accurate
   const extension = state.publish.extension;

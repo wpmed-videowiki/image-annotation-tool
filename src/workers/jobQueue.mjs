@@ -79,6 +79,12 @@ export const mapBand = ([from, to], percent) =>
   from + (percent / 100) * (to - from);
 
 export const mapJobError = (err, fallback = "Video processing failed.") => {
+  if (err?.name === "ReauthRequiredError") {
+    return "Your Wikimedia login expired; log in and retry.";
+  }
+  if (err?.name === "NotLinkedError") {
+    return `Link your ${err.provider === "nccommons" ? "NC Commons" : err.provider} account and retry.`;
+  }
   if (err?.code === "ENOENT") {
     return "The uploaded file expired. Please retry.";
   }

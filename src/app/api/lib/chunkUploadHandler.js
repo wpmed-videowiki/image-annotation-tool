@@ -4,6 +4,7 @@ import path from "path";
 import crypto from "crypto";
 import { UPLOADS_TMP_DIR, ensureTmpDirs } from "../../../lib/videoTmp.js";
 import { createLogger } from "../../../lib/logger.js";
+import { getSessionUser } from "../../lib/session";
 
 const log = createLogger("api.chunk-upload");
 
@@ -12,8 +13,8 @@ const log = createLogger("api.chunk-upload");
 // upload id; abandoned files are reaped by the video worker's temp sweeper.
 export const createChunkUploadHandler = ({ maxTotalBytes, chunkBytes }) =>
   async (req) => {
-    const appUserId = req.cookies.get("app-user-id")?.value;
-    if (!appUserId) {
+    const user = await getSessionUser();
+    if (!user) {
       log.warn("chunk upload unauthorized");
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }

@@ -1,9 +1,20 @@
 {
+    "Login_intro": "Log in with your Wikimedia Commons account to annotate and upload files.",
+    "Login_with_wikimedia": "Log in with Wikimedia Commons",
+    "Header_logout": "Log out ({username})",
+    "Header_link": "link account",
+    "Header_unlink": "unlink",
+    "Auth_error_generic": "Login failed. Please try again.",
+    "Auth_error_access_denied": "Login was cancelled.",
+    "Auth_error_state_mismatch": "Login session expired. Please try again.",
+    "Auth_error_exchange_failed": "Could not complete login with the wiki. Please try again.",
+    "Auth_error_profile_failed": "Could not read your wiki profile. Please try again.",
+    "Auth_error_not_authenticated": "Log in with Wikimedia Commons first.",
+    "Auth_error_unknown_provider": "Unknown login provider.",
+    "UpdateArticleSourceForm_update_failed": "Could not update the page. Check that you are logged in and try again.",
     "Stats_link": "Stats",
     "Index_view_on_commons": "View on Commons",
     "Index_view_original_page": "View original page",
-    "UploadForm_sign_in_to_upload_wikimedia": "Please sign in with Wikimedia to upload this file.",
-    "UploadForm_login_to_wikimedia": "Login to Wikimedia",
     "UploadForm_sign_in_to_upload_nccommons": "Please sign in with NC Commons to upload this file.",
     "UploadForm_login_to_nccommons": "Login to NC Commons",
     "UploadForm_file_name": "File Name",
@@ -17,8 +28,6 @@
     "UploadForm_file_page_source": "File Page Source",
     "UploadForm_upload_comment": "Upload Comment",
     "UpdateArticleSourceForm_update_success": "Page source updated successfully.",
-    "UpdateArticleSourceForm_sing_in_to_wikimedia_to_update": "Please sign in with Wikimedia to Update this article page",
-    "UpdateArticleSourceForm_login_to_wikimedia": "Login to Wikimedia",
     "UpdateArticleSourceForm_sing_in_to_mdwiki_to_update": "Please sign in with MD Wiki to Update this article page",
     "UpdateArticleSourceForm_login_to_mdwiki": "Login to MD Wiki",
     "UpdateArticleSourceForm_new_page_source": "New Page Source",
@@ -216,7 +225,9 @@
             "invalid_filename": "This file name is not valid.",
             "upload_failed": "The upload failed. Your answers are kept - you can try publishing again.",
             "invalid_extension": "This file format is not supported for upload.",
-            "invalid_file": "The rendered image could not be read. Try again or pick a different format."
+            "invalid_file": "The rendered image could not be read. Try again or pick a different format.",
+            "provider_not_linked": "Link the target wiki account from the menu in the top right, then retry.",
+            "reauth_required": "Your wiki login expired. Log in again and retry."
         }
     }
 }

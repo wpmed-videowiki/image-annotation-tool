@@ -35,7 +35,7 @@ export async function getStats(page = 1) {
 
 export async function getTotalUsers() {
   await connectDB();
-  const usersCount = await UserModel.countDocuments({ authenticated: true });
+  const usersCount = await UserModel.countDocuments({ "accounts.wikimedia": { $ne: null } });
 
   return usersCount;
 }

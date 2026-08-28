@@ -2,10 +2,10 @@
 
 import fs from "fs";
 import path from "path";
-import { cookies } from "next/headers";
 import connectDB from "../api/lib/connectDB";
-import UserModel from "../models/User";
 import ImageUploadModel from "../models/ImageUpload";
+import { authErrorResult, getSessionUser, unauthenticated } from "../lib/session";
+import { getProviderToken } from "../../lib/auth/tokens.js";
 import VideoJobModel from "../models/VideoJob";
 import { validateImagePublishRequest } from "../utils/imagePublishRequest.js";
 import {
@@ -27,11 +27,7 @@ const COMMONS_API_URL =
 
 const SDC_SUMMARY = "Structured data from the Image Annotation Tool upload wizard";
 
-const requireUser = async () => {
-  const appUserId = (await cookies()).get("app-user-id")?.value;
-  if (!appUserId) return null;
-  return UserModel.findById(appUserId);
-};
+const requireUser = () => getSessionUser();
 
 // Queues an image publish for the upload worker (src/workers/imageJobRunner.mjs)
 // instead of uploading inline: a >95MB Commons publish can hold a request open
@@ -42,7 +38,7 @@ export const createImageJob = async (formData) => {
   await connectDB();
 
   const user = await requireUser();
-  if (!user) return { error: "not_authenticated" };
+  if (!user) return unauthenticated();
 
   const chunkUploadId = String(formData.get("uploadId") || "");
   if (!/^[a-f0-9]{32}$/.test(chunkUploadId)) {
@@ -74,8 +70,8 @@ export const createImageJob = async (formData) => {
 
   const provider =
     formData.get("provider") === "nccommons" ? "nccommons" : "commons";
-  const profile =
-    provider === "nccommons" ? user.nccommonsProfile : user.wikimediaProfile;
+  const account = user.accounts[provider === "nccommons" ? "nccommons" : "wikimedia"];
+  const profile = account?.profile;
 
   const validated = validateImagePublishRequest({
     metadata,
@@ -92,9 +88,13 @@ export const createImageJob = async (formData) => {
   if (!validated.ok) return fail(validated);
   const { value } = validated;
 
-  const token =
-    provider === "nccommons" ? user.nccommonsToken : user.wikimediaToken;
-  if (!token) return fail({ error: "not_authenticated" });
+  try {
+    await getProviderToken(user._id, provider);
+  } catch (err) {
+    const mapped = authErrorResult(err);
+    if (mapped) return fail(mapped);
+    throw err;
+  }
 
   let job;
   try {
@@ -133,8 +133,9 @@ export const createImageJob = async (formData) => {
 export const getImageJobStatus = async (jobId) => {
   await connectDB();
 
-  const appUserId = (await cookies()).get("app-user-id")?.value;
-  if (!appUserId) return null;
+  const user = await requireUser();
+  if (!user) return null;
+  const appUserId = String(user._id);
   if (!/^[a-f0-9]{24}$/.test(String(jobId || ""))) return null;
 
   const job = await VideoJobModel.findById(jobId);
@@ -163,7 +164,7 @@ export const retryImageStructuredData = async (uploadId) => {
   await connectDB();
 
   const user = await requireUser();
-  if (!user) return { error: "not_authenticated" };
+  if (!user) return unauthenticated();
   if (!/^[a-f0-9]{24}$/.test(String(uploadId || ""))) return { error: "not_found" };
 
   const doc = await ImageUploadModel.findById(uploadId);
@@ -175,8 +176,14 @@ export const retryImageStructuredData = async (uploadId) => {
   const data = buildStructuredData(doc.metadata);
   if (!data) return { error: "nothing_to_write" };
 
-  const token = user.wikimediaToken;
-  if (!token) return { error: "not_authenticated" };
+  let token;
+  try {
+    token = await getProviderToken(user._id, "wikimedia");
+  } catch (err) {
+    const mapped = authErrorResult(err);
+    if (mapped) return mapped;
+    throw err;
+  }
 
   try {
     const mid =
