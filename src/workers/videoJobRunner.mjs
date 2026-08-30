@@ -22,12 +22,15 @@ import {
 } from "../lib/videoTmp.js";
 import {
   DRY_RUN_DIR,
+  finalizeCancelled,
+  makeCancelCheck,
   makeHeartbeat,
   makeProgressWriter,
   mapBand,
   mapJobError,
   setJob,
   startNextQueuedJob,
+  throwIfCancelled,
 } from "./jobQueue.mjs";
 import { createLogger } from "../lib/logger.js";
 
@@ -46,8 +49,9 @@ const DOWNLOAD_BAND = [0, 15];
 const PROCESS_BAND = [15, 72];
 const UPLOAD_BAND = [72, 92];
 const SDC_PROGRESS = 96;
+const CANCEL_POLL_MS = 3000;
 
-const downloadSource = async (url, destination, onProgress) => {
+const downloadSource = async (url, destination, onProgress, onChunk) => {
   const response = await fetch(url, {
     headers: { "User-Agent": process.env.USER_AGENT },
   });
@@ -60,7 +64,10 @@ const downloadSource = async (url, destination, onProgress) => {
     transform(chunk, encoding, callback) {
       received += chunk.length;
       if (total) onProgress((received / total) * 100);
-      callback(null, chunk);
+      Promise.resolve(onChunk?.()).then(
+        () => callback(null, chunk),
+        (err) => callback(err)
+      );
     },
   });
   await pipeline(
@@ -82,9 +89,16 @@ export async function runVideoJob(jobId) {
   }
 
   const log = logger.child({ jobId: String(job._id) });
+  if (job.cancelRequested) {
+    // cancelled between claim and run
+    await finalizeCancelled(job._id, log);
+    void startNextQueuedJob("video");
+    return;
+  }
   const startedAt = Date.now();
   const tempDir = path.join(JOBS_TMP_DIR, String(job._id));
   const writeProgress = makeProgressWriter(job._id);
+  const checkCancel = makeCancelCheck(job._id);
   let success = false;
 
   log.info("video job started", {
@@ -105,9 +119,11 @@ export async function runVideoJob(jobId) {
       progress: 0,
     });
 
-    // 1. acquire the source file
+    // 1. acquire the source file (a retried job already has it)
     const inputPath = path.join(tempDir, "input");
-    if (job.sourceType === "device") {
+    if (fs.existsSync(inputPath)) {
+      writeProgress(DOWNLOAD_BAND[1]);
+    } else if (job.sourceType === "device") {
       const uploadPath = path.join(
         UPLOADS_TMP_DIR,
         path.basename(job.deviceUploadId)
@@ -115,10 +131,14 @@ export async function runVideoJob(jobId) {
       await fs.promises.rename(uploadPath, inputPath);
       writeProgress(DOWNLOAD_BAND[1]);
     } else {
-      await downloadSource(job.sourceUrl, inputPath, (percent) =>
-        writeProgress(mapBand(DOWNLOAD_BAND, percent))
+      await downloadSource(
+        job.sourceUrl,
+        inputPath,
+        (percent) => writeProgress(mapBand(DOWNLOAD_BAND, percent)),
+        checkCancel
       );
     }
+    await throwIfCancelled(job._id);
     const probe = await ffprobeFile(inputPath);
     log.debug("probe complete", {
       durationSec: probe?.durationSec,
@@ -141,10 +161,21 @@ export async function runVideoJob(jobId) {
       progress: PROCESS_BAND[0],
       probe,
     });
-    await runFfmpeg(args, {
-      durationSec: outputDurationSec,
-      onProgress: (percent) => writeProgress(mapBand(PROCESS_BAND, percent)),
-    });
+    // ffmpeg is killed through an AbortSignal fed by a cancel poller
+    const abort = new AbortController();
+    const cancelPoll = setInterval(() => {
+      throwIfCancelled(job._id).catch(() => abort.abort());
+    }, CANCEL_POLL_MS);
+    try {
+      await runFfmpeg(args, {
+        durationSec: outputDurationSec,
+        onProgress: (percent) => writeProgress(mapBand(PROCESS_BAND, percent)),
+        signal: abort.signal,
+      });
+    } finally {
+      clearInterval(cancelPoll);
+    }
+    await throwIfCancelled(job._id);
 
     // 3. upload to Commons / NC Commons (or keep the file in dry-run mode)
     const provider = job.target.provider;
@@ -176,6 +207,7 @@ export async function runVideoJob(jobId) {
         filePath: outputPath,
         onProgress: (percent) => writeProgress(mapBand(UPLOAD_BAND, percent)),
         onPoll: makeHeartbeat(job._id),
+        onCheckpoint: makeCancelCheck(job._id),
         onStage: (stage) => {
           if (stage === "publishing") {
             void setJob(job._id, { status: "publishing", stage, progress: 95 });
@@ -184,6 +216,8 @@ export async function runVideoJob(jobId) {
           }
         },
       });
+      // the file is public now; a late cancel must not orphan it
+      await setJob(job._id, { cancelRequested: false });
     }
 
     // 3b. structured data. Skipped for NC Commons (no WikibaseMediaInfo) and
@@ -251,6 +285,10 @@ export async function runVideoJob(jobId) {
       descriptionurl,
     });
   } catch (err) {
+    if (err?.name === "JobCancelledError") {
+      await finalizeCancelled(job._id, log);
+      return;
+    }
     log.error("video job failed", { durationMs: Date.now() - startedAt, err });
     await setJob(job._id, {
       status: "error",

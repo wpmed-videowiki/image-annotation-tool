@@ -60,11 +60,16 @@ export const uploadFileToCommonsChunked = async (
     // heartbeat while Commons assembles the file (can take many minutes
     // with no progress change)
     onPoll = () => {},
+    // cancel checkpoint; may throw to abort. Only consulted before the
+    // final publish request: past that point the file is public and the
+    // job is no longer cancellable.
+    onCheckpoint = async () => {},
     // runners inject their per-job child logger
     log = createLogger("commons.chunked-upload"),
   }
 ) => {
   const size = (await fs.promises.stat(filePath)).size;
+  await onCheckpoint();
   if (size <= COMMONS_SINGLE_SHOT_MAX_BYTES) {
     log.debug("file under chunk threshold, single-shot upload", { size });
     return uploadFileToCommons(baseUrl, token, {
@@ -85,6 +90,7 @@ export const uploadFileToCommonsChunked = async (
 
   try {
     while (offset < size) {
+      await onCheckpoint();
       const length = Math.min(COMMONS_CHUNK_BYTES, size - offset);
       const buffer = Buffer.alloc(length);
       await fileHandle.read(buffer, 0, length, offset);

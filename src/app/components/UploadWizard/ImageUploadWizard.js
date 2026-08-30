@@ -15,6 +15,7 @@ const ImageUploadWizard = ({
   extensionChoices = IMAGE_RASTER_EXTENSION_CHOICES,
   defaultExtension,
   editorSlot,
+  onStartAnother,
 }) => {
   const publishState = useImagePublish({ provider, wikiSource, editorRef });
 
@@ -26,6 +27,7 @@ const ImageUploadWizard = ({
       prefill={prefill}
       publishState={publishState}
       editorSlot={editorSlot}
+      onStartAnother={onStartAnother}
       media={{
         kind: "image",
         extensionChoices,

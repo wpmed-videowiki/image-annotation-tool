@@ -32,8 +32,12 @@ export const useVideoPublish = ({ provider, wikiSource, editorRef }) => {
   const destinationName =
     provider === "nccommons" ? "NC Commons" : "Wikimedia Commons";
 
+  // true from job creation until the poll sees a terminal status; once
+  // queued the worker finishes the job whether or not this tab stays open
+  const [jobQueued, setJobQueued] = useState(false);
+
   useEffect(() => () => clearInterval(pollRef.current), []);
-  useBeforeUnload(loading);
+  useBeforeUnload(loading && !jobQueued);
 
   const pollVideoJob = useCallback(
     (id) => {
@@ -56,11 +60,19 @@ export const useVideoPublish = ({ provider, wikiSource, editorRef }) => {
             setSdc(status.sdc || null);
             toast.success("File uploaded successfully");
             setLoading(false);
+            setJobQueued(false);
           } else if (status.status === "error") {
             clearInterval(pollRef.current);
             setStage("");
             toast.error(status.error || t("UploadForm_video_job_failed"));
             setLoading(false);
+            setJobQueued(false);
+          } else if (status.status === "cancelled") {
+            clearInterval(pollRef.current);
+            setStage("");
+            toast.info(t("UploadWizard.review.cancelled"));
+            setLoading(false);
+            setJobQueued(false);
           }
         } catch (err) {
           console.log(err);
@@ -116,6 +128,7 @@ export const useVideoPublish = ({ provider, wikiSource, editorRef }) => {
           throw error;
         }
         setJobId(response.jobId);
+        setJobQueued(true);
         pollVideoJob(response.jobId);
         return { ok: true, jobId: response.jobId };
       } catch (err) {
@@ -129,7 +142,17 @@ export const useVideoPublish = ({ provider, wikiSource, editorRef }) => {
     [destinationName, editorRef, pollVideoJob, provider, t, wikiSource]
   );
 
-  return { publish, loading, stage, progress, uploadedUrl, sdc, jobId, destinationName };
+  return {
+    publish,
+    loading,
+    stage,
+    progress,
+    uploadedUrl,
+    sdc,
+    jobId,
+    jobQueued,
+    destinationName,
+  };
 };
 
 export default useVideoPublish;

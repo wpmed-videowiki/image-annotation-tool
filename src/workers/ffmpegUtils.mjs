@@ -152,11 +152,24 @@ export const buildFfmpegArgs = ({ inputPath, outputPath, ops, probe }) => {
   return { args, strategy: "encode", outputDurationSec };
 };
 
-export const runFfmpeg = (args, { durationSec, onProgress } = {}) =>
+const SIGKILL_GRACE_MS = 5000;
+
+// `signal` (AbortSignal) kills the encode; the rejection carries
+// name "JobCancelledError" so runners treat it like any other cancel
+export const runFfmpeg = (args, { durationSec, onProgress, signal } = {}) =>
   new Promise((resolve, reject) => {
     const proc = spawn("ffmpeg", args);
     const stderrLines = [];
     let stdoutBuffer = "";
+    let aborted = false;
+    let killTimer = null;
+    const onAbort = () => {
+      aborted = true;
+      proc.kill("SIGTERM");
+      killTimer = setTimeout(() => proc.kill("SIGKILL"), SIGKILL_GRACE_MS);
+    };
+    if (signal?.aborted) onAbort();
+    else signal?.addEventListener("abort", onAbort, { once: true });
     proc.stdout.on("data", (data) => {
       stdoutBuffer += data.toString();
       const lines = stdoutBuffer.split("\n");
@@ -178,6 +191,13 @@ export const runFfmpeg = (args, { durationSec, onProgress } = {}) =>
     });
     proc.on("error", reject);
     proc.on("close", (code) => {
+      clearTimeout(killTimer);
+      signal?.removeEventListener("abort", onAbort);
+      if (aborted) {
+        return reject(
+          Object.assign(new Error("ffmpeg cancelled"), { name: "JobCancelledError" })
+        );
+      }
       if (code === 0) return resolve();
       const err = new Error(`ffmpeg exited with code ${code}`);
       err.stderrTail = stderrLines.join("\n");

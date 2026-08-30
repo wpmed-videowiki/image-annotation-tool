@@ -13,6 +13,8 @@ import {
   ensureTmpDirs,
 } from "../lib/videoTmp.js";
 import {
+  finalizeCancelled,
+  makeCancelCheck,
   makeHeartbeat,
   makeProgressWriter,
   mapBand,
@@ -58,9 +60,16 @@ export async function runImageJob(jobId) {
   }
 
   const log = logger.child({ jobId: String(job._id) });
+  if (job.cancelRequested) {
+    // cancelled between claim and run
+    await finalizeCancelled(job._id, log);
+    void startNextQueuedJob("image");
+    return;
+  }
   const startedAt = Date.now();
   const tempDir = path.join(JOBS_TMP_DIR, String(job._id));
   const writeProgress = makeProgressWriter(job._id);
+  const checkCancel = makeCancelCheck(job._id, 0);
   let success = false;
 
   log.info("image job started", {
@@ -80,13 +89,16 @@ export async function runImageJob(jobId) {
     });
 
     // 1. take ownership of the assembled upload (ENOENT here maps to the
-    // "uploaded file expired" user error)
+    // "uploaded file expired" user error). A retried job already has it.
     const inputPath = path.join(tempDir, "input");
-    await fs.promises.rename(
-      path.join(UPLOADS_TMP_DIR, path.basename(job.deviceUploadId)),
-      inputPath
-    );
-    log.debug("claimed device upload", { deviceUploadId: job.deviceUploadId });
+    if (!fs.existsSync(inputPath)) {
+      await fs.promises.rename(
+        path.join(UPLOADS_TMP_DIR, path.basename(job.deviceUploadId)),
+        inputPath
+      );
+      log.debug("claimed device upload", { deviceUploadId: job.deviceUploadId });
+    }
+    await checkCancel();
 
     // 2. upload to Commons / NC Commons with a fresh token
     const provider = job.target.provider;
@@ -112,12 +124,15 @@ export async function runImageJob(jobId) {
         }
       },
       onPoll: makeHeartbeat(job._id),
+      onCheckpoint: makeCancelCheck(job._id),
       log,
     });
     log.info("commons upload accepted", {
       filename: job.target.filename,
       provider,
     });
+    // the file is public now; a late cancel must not orphan it
+    await setJob(job._id, { cancelRequested: false });
 
     // 3. structured data. Commons-only, and a failure never fails the job -
     // the file is already public; the outcome is recorded for a retry.
@@ -177,6 +192,10 @@ export async function runImageJob(jobId) {
       descriptionurl,
     });
   } catch (err) {
+    if (err?.name === "JobCancelledError") {
+      await finalizeCancelled(job._id, log);
+      return;
+    }
     log.error("image job failed", { durationMs: Date.now() - startedAt, err });
     await setJob(job._id, {
       status: "error",
