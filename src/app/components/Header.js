@@ -81,6 +81,11 @@ const Header = () => {
             <Stack sx={{ ml: 2 }}>
               <Link href="/stats">{t("Stats_link")}</Link>
             </Stack>
+            {user && (
+              <Stack sx={{ ml: 2 }}>
+                <Link href="/uploads">{t("Uploads_link")}</Link>
+              </Stack>
+            )}
             <Stack sx={{ ml: 2 }}>
               <OtherTools />
             </Stack>
@@ -142,6 +147,12 @@ const Header = () => {
                 open={Boolean(anchorElUser)}
                 onClose={handleCloseUserMenu}
               >
+                {user && (
+                  // the left nav is hidden below md; keep uploads reachable
+                  <MenuItem component={Link} href="/uploads" onClick={handleCloseUserMenu}>
+                    <Typography textAlign="center">{t("Uploads_link")}</Typography>
+                  </MenuItem>
+                )}
                 {user ? (
                   <MenuItem onClick={onLogout}>
                     <Typography textAlign="center">

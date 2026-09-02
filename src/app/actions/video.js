@@ -29,14 +29,6 @@ const log = createLogger("action.video");
 const COMMONS_API_URL =
   process.env.COMMONS_API_URL || "https://commons.wikimedia.org/w/api.php";
 
-const ACTIVE_STATUSES = [
-  "queued",
-  "downloading",
-  "processing",
-  "uploading",
-  "publishing",
-];
-
 const ALLOWED_ROTATIONS = [0, 90, 180, 270];
 const ALLOWED_SOURCE_HOSTS = [
   "upload.wikimedia.org",
@@ -169,11 +161,8 @@ export const createVideoJob = async (payload) => {
     throw err;
   }
 
-  const activeJobs = await VideoJobModel.countDocuments({
-    user: user._id,
-    status: { $in: ACTIVE_STATUSES },
-  });
-  if (activeJobs > 0) return reject({ error: "job_already_running" });
+  // no per-user limit: jobs queue FIFO behind the worker's per-kind cap and
+  // the user tracks them on /uploads
 
   let job;
   try {
@@ -229,6 +218,7 @@ export const getVideoJobStatus = async (jobId) => {
     stage: job.stage,
     progress: job.progress,
     error: job.error,
+    cancelRequested: !!job.cancelRequested,
     result: job.result?.descriptionurl
       ? { descriptionurl: job.result.descriptionurl }
       : null,

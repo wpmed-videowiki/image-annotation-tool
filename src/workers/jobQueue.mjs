@@ -9,6 +9,7 @@ import {
   VIDEO_TMP_DIR,
 } from "../lib/videoTmp.js";
 import { createLogger } from "../lib/logger.js";
+import { RUNNING_STATUSES } from "../app/utils/jobStatus.js";
 
 const log = createLogger("worker.queue");
 
@@ -19,12 +20,15 @@ const SWEEP_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 export const DRY_RUN_DIR = path.join(VIDEO_TMP_DIR, "dry-run");
 
-export const RUNNING_STATUSES = [
-  "downloading",
-  "processing",
-  "uploading",
-  "publishing",
-];
+export { RUNNING_STATUSES };
+
+// thrown by cancel checkpoints inside the runners
+export class JobCancelledError extends Error {
+  constructor(message = "job cancelled") {
+    super(message);
+    this.name = "JobCancelledError";
+  }
+}
 
 export const setJob = async (jobId, fields) => {
   try {
@@ -75,10 +79,44 @@ export const makeHeartbeat = (jobId, minIntervalMs = 5000) => {
   };
 };
 
+export const throwIfCancelled = async (jobId) => {
+  const job = await VideoJobModel.findById(jobId, {
+    cancelRequested: 1,
+    status: 1,
+  }).lean();
+  if (!job || job.cancelRequested || job.status === "cancelled") {
+    throw new JobCancelledError();
+  }
+};
+
+// throttled checkpoint for hot loops (per chunk, per checkstatus poll)
+export const makeCancelCheck = (jobId, minIntervalMs = 3000) => {
+  let last = 0;
+  return async () => {
+    const now = Date.now();
+    if (now - last < minIntervalMs) return;
+    last = now;
+    await throwIfCancelled(jobId);
+  };
+};
+
+// The temp dir is deliberately kept so a cancelled device-source job stays
+// retryable; sweepTempFiles() collects it after 24h.
+export const finalizeCancelled = async (jobId, log) => {
+  await setJob(jobId, {
+    status: "cancelled",
+    stage: "",
+    cancelRequested: false,
+    error: "",
+  });
+  log?.info("job cancelled");
+};
+
 export const mapBand = ([from, to], percent) =>
   from + (percent / 100) * (to - from);
 
 export const mapJobError = (err, fallback = "Video processing failed.") => {
+  if (err?.name === "JobCancelledError") return "Cancelled.";
   if (err?.name === "ReauthRequiredError") {
     return "Your Wikimedia login expired; log in and retry.";
   }
@@ -143,7 +181,7 @@ export async function startNextQueuedJob(kind = "video") {
     });
     if (activeCount >= config.max) return false;
     const next = await VideoJobModel.findOneAndUpdate(
-      { status: "queued", ...config.kindFilter },
+      { status: "queued", cancelRequested: { $ne: true }, ...config.kindFilter },
       { $set: { status: config.firstStatus, stage: "starting" } },
       { sort: { createdAt: 1 }, new: true }
     );

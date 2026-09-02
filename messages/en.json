@@ -14,6 +14,7 @@
     "UpdateArticleSourceForm_update_failed": "Could not update the page. Check that you are logged in and try again.",
     "Stats_link": "Stats",
     "Index_view_on_commons": "View on Commons",
+    "Uploads_link": "My uploads",
     "Index_view_original_page": "View original page",
     "UploadForm_sign_in_to_upload_nccommons": "Please sign in with NC Commons to upload this file.",
     "UploadForm_login_to_nccommons": "Login to NC Commons",
@@ -199,6 +200,10 @@
             "sdc_failed": "The file was published, but its captions and structured data could not be saved. You can retry from the file page.",
             "sdc_retry": "Retry",
             "sdc_retry_failed": "Saving the structured data failed again. You can also add captions directly on the file page.",
+            "leave_hint": "Your file is queued and will finish uploading even if you leave this page.",
+            "leave_link": "Track it under My uploads",
+            "start_another": "Start another upload",
+            "cancelled": "This upload was cancelled.",
             "no_sdc_on_provider": "This wiki does not support structured data, so captions and main subjects will only be written to the file page text."
         },
         "errors": {
@@ -220,12 +225,64 @@
             "not_a_template": "Enter a valid template, for example '{{Cc-by-2.0}}'.",
             "blocked_license": "This file cannot be uploaded to Wikimedia Commons based on your answers.",
             "invalid_metadata": "Some of the information you entered is not valid. Please review your answers.",
-            "job_already_running": "Another video of yours is still uploading. Wait for it to finish, then try again.",
             "not_authenticated": "Your session has expired. Sign in again and retry.",
             "invalid_filename": "This file name is not valid.",
             "upload_failed": "The upload failed. Your answers are kept - you can try publishing again.",
             "invalid_extension": "This file format is not supported for upload.",
             "invalid_file": "The rendered image could not be read. Try again or pick a different format.",
+            "provider_not_linked": "Link the target wiki account from the menu in the top right, then retry.",
+            "reauth_required": "Your wiki login expired. Log in again and retry."
+        }
+    },
+    "Uploads": {
+        "title": "My uploads",
+        "new_upload": "New upload",
+        "recent": "Recent",
+        "archived": "Archived",
+        "filter_status": "Status",
+        "filter_all": "All",
+        "kind_image": "Image",
+        "kind_video": "Video",
+        "destination_commons": "Wikimedia Commons",
+        "destination_nccommons": "NC Commons",
+        "status": {
+            "queued": "Queued",
+            "downloading": "Downloading",
+            "processing": "Processing",
+            "uploading": "Uploading",
+            "publishing": "Publishing",
+            "done": "Done",
+            "error": "Failed",
+            "cancelled": "Cancelled"
+        },
+        "actions": {
+            "cancel": "Cancel",
+            "cancelling": "Cancelling...",
+            "retry": "Retry",
+            "retry_all_failed": "Retry all failed",
+            "archive": "Archive",
+            "unarchive": "Unarchive",
+            "view_file": "View file",
+            "show_details": "Show details"
+        },
+        "empty_recent": "You have no uploads yet.",
+        "empty_archived": "You have no archived uploads.",
+        "empty_filtered": "No uploads match this filter.",
+        "toast": {
+            "cancel_requested": "Cancelling - the upload will stop shortly.",
+            "cancelled": "Upload cancelled.",
+            "retried": "Upload re-queued.",
+            "retry_all_done": "{count, plural, =0 {No uploads re-queued} one {# upload re-queued} other {# uploads re-queued}}",
+            "archived": "Upload archived.",
+            "unarchived": "Upload restored."
+        },
+        "errors": {
+            "not_found": "This upload could not be found.",
+            "not_cancellable": "This upload can no longer be cancelled.",
+            "not_retryable": "This upload cannot be retried.",
+            "not_archivable": "Only finished uploads can be archived.",
+            "source_expired": "The uploaded file is no longer on the server. Start a new upload instead.",
+            "not_authenticated": "Your session has expired. Sign in again and retry.",
             "provider_not_linked": "Link the target wiki account from the menu in the top right, then retry.",
             "reauth_required": "Your wiki login expired. Log in again and retry."
         }

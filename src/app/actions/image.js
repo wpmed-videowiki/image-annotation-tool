@@ -148,6 +148,7 @@ export const getImageJobStatus = async (jobId) => {
     stage: job.stage,
     progress: job.progress,
     error: job.error,
+    cancelRequested: !!job.cancelRequested,
     // uploadId is the ImageUpload doc id, which the SDC retry needs
     result: job.result?.descriptionurl
       ? {

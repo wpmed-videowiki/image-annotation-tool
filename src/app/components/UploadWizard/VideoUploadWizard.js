@@ -11,6 +11,7 @@ const VideoUploadWizard = ({
   source,
   prefill,
   editorSlot,
+  onStartAnother,
 }) => {
   const publishState = useVideoPublish({ provider, wikiSource, editorRef });
 
@@ -22,6 +23,7 @@ const VideoUploadWizard = ({
       prefill={prefill}
       publishState={publishState}
       editorSlot={editorSlot}
+      onStartAnother={onStartAnother}
       media={{ kind: "video", extensionChoices: ["webm"], defaultExtension: "webm" }}
     />
   );

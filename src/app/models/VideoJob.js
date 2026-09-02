@@ -24,11 +24,17 @@ const VideoJobSchema = new Schema(
         "publishing",
         "done",
         "error",
+        "cancelled",
       ],
       default: "queued",
       index: true,
     },
     stage: { type: String, default: "" },
+    // set by cancelJob(); runners poll it and finish as "cancelled"
+    cancelRequested: { type: Boolean, default: false },
+    // hidden from the default /uploads list; query with $ne:true so docs that
+    // predate the field stay visible
+    archived: { type: Boolean, default: false },
     progress: { type: Number, default: 0 },
     // { rotation, trim, crop, mute }; image jobs carry no ops
     ops: {
@@ -58,6 +64,8 @@ const VideoJobSchema = new Schema(
 
 // the worker's claim query: queued jobs of one kind, oldest first
 VideoJobSchema.index({ status: 1, kind: 1, createdAt: 1 });
+// the per-user /uploads list
+VideoJobSchema.index({ user: 1, archived: 1, createdAt: -1 });
 
 const VideoJobModel =
   mongoose.models.VideoJob || mongoose.model("VideoJob", VideoJobSchema);

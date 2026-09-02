@@ -253,6 +253,7 @@ export default function Home() {
             provider="commons"
             wikiSource={null}
             editorRef={instanceRef}
+            onStartAnother={() => setDeviceImageFile(null)}
             editorSlot={
               deviceIsSvg ? (
                 <SVGEditor
@@ -305,6 +306,7 @@ export default function Home() {
             provider="commons"
             wikiSource={null}
             editorRef={instanceRef}
+            onStartAnother={() => setDeviceVideoFile(null)}
             editorSlot={
               <VideoEditor
                 key={deviceVideoFile.name}

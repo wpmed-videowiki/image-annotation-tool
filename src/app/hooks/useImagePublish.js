@@ -30,12 +30,17 @@ export const useImagePublish = ({ provider, wikiSource, editorRef }) => {
   const [uploadedUrl, setUploadedUrl] = useState("");
   const [sdc, setSdc] = useState(null);
   const [uploadId, setUploadId] = useState(null);
+  const [jobId, setJobId] = useState("");
 
   const destinationName =
     provider === "nccommons" ? "NC Commons" : "Wikimedia Commons";
 
+  // true from job creation until the poll sees a terminal status; once
+  // queued the worker finishes the job whether or not this tab stays open
+  const [jobQueued, setJobQueued] = useState(false);
+
   useEffect(() => () => clearInterval(pollRef.current), []);
-  useBeforeUnload(loading);
+  useBeforeUnload(loading && !jobQueued);
 
   const pollImageJob = useCallback(
     (id) => {
@@ -59,11 +64,19 @@ export const useImagePublish = ({ provider, wikiSource, editorRef }) => {
             setUploadId(status.result?.uploadId || null);
             toast.success("File uploaded successfully");
             setLoading(false);
+            setJobQueued(false);
           } else if (status.status === "error") {
             clearInterval(pollRef.current);
             setStage("");
             toast.error(status.error || t("UploadForm_image_upload_failed"));
             setLoading(false);
+            setJobQueued(false);
+          } else if (status.status === "cancelled") {
+            clearInterval(pollRef.current);
+            setStage("");
+            toast.info(t("UploadWizard.review.cancelled"));
+            setLoading(false);
+            setJobQueued(false);
           }
         } catch (err) {
           console.log(err);
@@ -126,6 +139,8 @@ export const useImagePublish = ({ provider, wikiSource, editorRef }) => {
           error.fields = response?.fields || [];
           throw error;
         }
+        setJobId(response.jobId);
+        setJobQueued(true);
         pollImageJob(response.jobId);
         return { ok: true, jobId: response.jobId };
       } catch (err) {
@@ -167,6 +182,8 @@ export const useImagePublish = ({ provider, wikiSource, editorRef }) => {
     uploadedUrl,
     sdc,
     uploadId,
+    jobId,
+    jobQueued,
     retrySdc,
     destinationName,
   };

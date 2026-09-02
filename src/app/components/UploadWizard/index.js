@@ -17,6 +17,8 @@ import {
   useTheme,
 } from "@mui/material";
 import { UploadFile } from "@mui/icons-material";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useAuth } from "../AuthProvider";
 
@@ -67,9 +69,13 @@ const UploadWizardShell = ({
   publishState,
   editorSlot,
   media = { kind: "video", extensionChoices: ["webm"], defaultExtension: "webm" },
+  // called by "Start another upload" once the job is queued; the page
+  // resets its picker state, or we fall back to navigating home
+  onStartAnother,
 }) => {
   const t = useTranslations("UploadWizard");
   const locale = useLocale();
+  const router = useRouter();
   const theme = useTheme();
   const { user } = useAuth();
   const isCompact = useMediaQuery(theme.breakpoints.down("sm"));
@@ -152,6 +158,27 @@ const UploadWizardShell = ({
     if (!result.ok) setPublishError(result);
   };
 
+  const startAnother = () => {
+    if (onStartAnother) onStartAnother();
+    else router.push("/");
+  };
+
+  // shown once the job is on the server: the worker finishes it without us
+  const leaveHint = publishState.jobQueued && (
+    <Alert
+      severity="info"
+      sx={{ mb: 2 }}
+      action={
+        <Button color="inherit" size="small" onClick={startAnother}>
+          {t("review.start_another")}
+        </Button>
+      }
+    >
+      {t("review.leave_hint")}{" "}
+      <Link href="/uploads">{t("review.leave_link")}</Link>
+    </Alert>
+  );
+
   if (publishState.uploadedUrl) {
     return (
       <UploadSuccess
@@ -159,6 +186,12 @@ const UploadWizardShell = ({
         wikiSource={wikiSource}
         originalFileName={prefill.originalFileName}
       >
+        <Stack direction="row" spacing={2}>
+          <Link href="/uploads">{t("review.leave_link")}</Link>
+          <Button size="small" onClick={startAnother}>
+            {t("review.start_another")}
+          </Button>
+        </Stack>
         {publishState.sdc && !publishState.sdc.ok && (
           <Alert
             severity="warning"
@@ -264,6 +297,8 @@ const UploadWizardShell = ({
                     : publishError.message}
                 </Alert>
               )}
+
+              {leaveHint}
             </Box>
 
             {editorSlot && (
