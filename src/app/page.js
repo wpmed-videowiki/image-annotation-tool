@@ -25,7 +25,6 @@ import {
   IMAGE_RASTER_EXTENSION_CHOICES,
   SUPPORTED_OVERWRITE_EXTENSIONS,
 } from "./config/constants";
-import Header from "./components/Header";
 import SearchForm from "./components/SearchForm";
 import VideoFilePicker from "./components/VideoFilePicker";
 import ImageFilePicker from "./components/ImageFilePicker";
@@ -211,34 +210,34 @@ export default function Home() {
 
   if (!user) {
     return (
-      <div>
-        <Header />
-        <Container maxWidth="xl">
-          <LoginScreen />
-        </Container>
-      </div>
+      <Container
+        maxWidth="xl"
+        sx={{ flex: 1, display: "flex", flexDirection: "column" }}
+      >
+        <LoginScreen />
+      </Container>
     );
   }
 
   if (!fileName && !deviceVideoFile && !deviceImageFile) {
     return (
-      <div>
-        <Header />
-        <Container maxWidth="xl">
-          <Stack
-            alignItems="center"
-            justifyContent="center"
-            spacing={4}
-            sx={{ height: "calc(100vh - 64px)" }}
-          >
-            <SearchForm />
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-              <ImageFilePicker onFileSelected={setDeviceImageFile} />
-              <VideoFilePicker onFileSelected={setDeviceVideoFile} />
-            </Stack>
+      <Container
+        maxWidth="xl"
+        sx={{ flex: 1, display: "flex", flexDirection: "column" }}
+      >
+        <Stack
+          alignItems="center"
+          justifyContent="center"
+          spacing={4}
+          sx={{ flex: 1, py: 4 }}
+        >
+          <SearchForm />
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <ImageFilePicker onFileSelected={setDeviceImageFile} />
+            <VideoFilePicker onFileSelected={setDeviceVideoFile} />
           </Stack>
-        </Container>
-      </div>
+        </Stack>
+      </Container>
     );
   }
 
