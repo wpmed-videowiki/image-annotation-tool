@@ -100,6 +100,8 @@ export default function Home() {
   const [deviceImageFile, setDeviceImageFile] = useState(null);
   // "overwrite" | "new" for Commons-sourced images
   const [imageUploadMode, setImageUploadMode] = useState("new");
+  // set by the editor's "Remove background" tool; the wizard then prefers PNG
+  const [hasTransparency, setHasTransparency] = useState(false);
   const containerRef = useRef(null);
   const appliedDefaultModeRef = useRef(false);
   const fileName = searchParams.get("file");
@@ -132,6 +134,11 @@ export default function Home() {
     url.searchParams.delete("authError");
     window.history.replaceState({}, "", url.toString());
   }, [authError]);
+
+  // a new source image starts opaque again
+  useEffect(() => {
+    setHasTransparency(false);
+  }, [imageUrl, deviceImageFile]);
 
   // object URL for the device-image editors, they load from a URL not a File
   const deviceImageUrl = useMemo(
@@ -252,6 +259,7 @@ export default function Home() {
             provider="commons"
             wikiSource={null}
             editorRef={instanceRef}
+            hasTransparency={hasTransparency}
             onStartAnother={() => setDeviceImageFile(null)}
             editorSlot={
               deviceIsSvg ? (
@@ -268,6 +276,7 @@ export default function Home() {
                   instanceRef={instanceRef}
                   id="tui-image-editor"
                   height={WIZARD_EDITOR_HEIGHT}
+                  onTransparencyChange={setHasTransparency}
                 />
               )
             }
@@ -382,6 +391,7 @@ export default function Home() {
                 provider={provider}
                 wikiSource={searchParams.get("wikiSource")}
                 editorRef={instanceRef}
+                hasTransparency={hasTransparency}
                 editorSlot={
                   isSvgFile ? (
                     <SVGEditor
@@ -397,6 +407,7 @@ export default function Home() {
                       instanceRef={instanceRef}
                       id="tui-image-editor"
                       height={WIZARD_EDITOR_HEIGHT}
+                      onTransparencyChange={setHasTransparency}
                     />
                   )
                 }

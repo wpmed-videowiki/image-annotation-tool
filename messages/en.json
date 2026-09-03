@@ -184,7 +184,9 @@
             "geolocate": "Use my current location",
             "geolocate_denied": "Could not read your location. Enter the coordinates manually.",
             "other_info_label": "Any other information you want to include (optional)",
-            "cc0_notice": "CC-0 license will be applied to captions and other additional information such as main subjects and location (NOT the file). By clicking “publish”, you agree to the terms of use, and you irrevocably agree to release your contribution under the Creative Commons CC0 License."
+            "cc0_notice": "CC-0 license will be applied to captions and other additional information such as main subjects and location (NOT the file). By clicking “publish”, you agree to the terms of use, and you irrevocably agree to release your contribution under the Creative Commons CC0 License.",
+            "png_recommended_for_transparency": "This image has transparent areas. PNG keeps them; JPG fills them with black.",
+            "png_switched_for_transparency": "Upload format switched to PNG to keep the transparent background."
         },
         "review": {
             "summary_title": "Summary",
@@ -285,6 +287,39 @@
             "not_authenticated": "Your session has expired. Sign in again and retry.",
             "provider_not_linked": "Link the target wiki account from the menu in the top right, then retry.",
             "reauth_required": "Your wiki login expired. Log in again and retry."
+        }
+    },
+    "RemoveBackground": {
+        "button": "Remove background",
+        "title": "Remove background",
+        "before": "Before",
+        "after": "After",
+        "threshold_label": "Threshold",
+        "threshold_help": "Higher values remove more of the background. Lower values keep soft edges such as hair.",
+        "update_preview": "Update preview",
+        "apply": "Apply",
+        "cancel": "Cancel",
+        "restore": "Restore original",
+        "capturing": "Preparing the image...",
+        "processing": "Removing background...",
+        "apply_warning": "Applying replaces the background with the cut-out version. Your annotations stay in place and remain editable. The editor's Undo button reverts it.",
+        "restore_warning": "Restore brings back the background as it was before it was removed. Your annotations are kept. The editor's Undo button reverts the restore.",
+        "history_remove": "Remove background",
+        "history_restore": "Restore background",
+        "png_hint": "Transparent areas are only kept when the file is uploaded as PNG.",
+        "unavailable": "Background removal is not available on this server.",
+        "errors": {
+            "capture_failed": "The editor image could not be captured. Please try again.",
+            "not_authenticated": "Your session has expired. Sign in again and retry.",
+            "invalid_file": "The image could not be read.",
+            "invalid_threshold": "The threshold value is not valid.",
+            "file_too_large": "This image is too large for background removal. The maximum is 100 MB.",
+            "image_too_large": "This image has too many pixels for background removal. Try cropping or resizing it first.",
+            "busy": "The server is busy removing other backgrounds. Please try again in a moment.",
+            "model_missing": "Background removal is not available on this server.",
+            "model_load_failed": "Background removal is not available on this server.",
+            "removal_failed": "Background removal failed. Please try again.",
+            "generic": "Background removal failed. Please try again."
         }
     }
 }

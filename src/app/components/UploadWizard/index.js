@@ -20,6 +20,7 @@ import { UploadFile } from "@mui/icons-material";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
+import { toast } from "react-toastify";
 import { useAuth } from "../AuthProvider";
 
 import { buildFilePageWikitext } from "../../utils/commonsWikitext";
@@ -88,6 +89,16 @@ const UploadWizardShell = ({
   const [publishError, setPublishError] = useState(null);
   const headingRef = useRef(null);
   const hydratedRef = useRef(false);
+
+  // a removed background only survives as PNG: switch once when it appears
+  useEffect(() => {
+    if (media.kind !== "image" || !media.hasTransparency) return;
+    if (!["jpg", "jpeg"].includes(state.publish.extension)) return;
+    if (!media.extensionChoices.includes("png")) return;
+    dispatch({ type: "SET_PUBLISH", value: { extension: "png" } });
+    toast.info(t("describe.png_switched_for_transparency"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [media.hasTransparency]);
 
   // prefill lands once; guard against a late async result clobbering user input
   useEffect(() => {

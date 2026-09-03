@@ -1,1 +1,6 @@
-./data
+data
+node_modules
+.next
+.git
+videos
+*.webm
