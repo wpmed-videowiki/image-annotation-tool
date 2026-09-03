@@ -4,7 +4,7 @@ import AppProviders from "./AppProviders";
 import { getLocale, getMessages } from "next-intl/server";
 import { NextIntlClientProvider } from "next-intl";
 import Header from "./components/Header";
-import { Box, CssBaseline } from "@mui/material";
+import { Box, CssBaseline, Link, Toolbar } from "@mui/material";
 import { getCurrentUserSummary } from "./lib/session";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -27,11 +27,38 @@ export default async function RootLayout({ children }) {
       <body className={inter.className}>
         <AppProviders user={user}>
           <NextIntlClientProvider messages={messages}>
-            <main>
+            <CssBaseline />
+            <Box
+              sx={{
+                minHeight: "100dvh",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
               <Header />
-              <CssBaseline />
-              <Box sx={{ marginTop: 11 }}>{children}</Box>
-            </main>
+              <Toolbar aria-hidden="true" />
+              <Box
+                component="main"
+                sx={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  pt: 3,
+                }}
+              >
+                {children}
+              </Box>
+              <Box component="footer" sx={{ py: 2, textAlign: "center" }}>
+                <Link
+                  href="https://commons.wikimedia.org/wiki/Commons:ImageAnnotateTool"
+                  target="_blank"
+                  rel="noreferrer"
+                  color="primary"
+                >
+                  Documentation
+                </Link>
+              </Box>
+            </Box>
           </NextIntlClientProvider>
         </AppProviders>
       </body>

@@ -11,7 +11,7 @@ const LoginScreen = () => {
       alignItems="center"
       justifyContent="center"
       spacing={3}
-      sx={{ height: "calc(100vh - 64px)" }}
+      sx={{ flex: 1, py: 4 }}
     >
       <img src="/logo.png" width={260} alt="" />
       <Typography variant="body1" color="text.secondary" textAlign="center">

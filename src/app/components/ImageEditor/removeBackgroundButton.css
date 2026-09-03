@@ -1,0 +1,22 @@
+.tie-btn-removeBackground .remove-background-icon {
+  stroke: #8a8a8a;
+}
+.tie-btn-removeBackground:hover .remove-background-icon {
+  stroke: #555555;
+}
+.tie-btn-removeBackground.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.tie-btn-removeBackground.disabled:hover .remove-background-icon {
+  stroke: #8a8a8a;
+}
+
+/* the tui sprite has no icon for these commands; reuse the menu glyph */
+.tui-image-editor-history-item
+  .history-item-icon:has(use[*|href$="ic-history-removebackground"]),
+.tui-image-editor-history-item
+  .history-item-icon:has(use[*|href$="ic-history-restorebackground"]) {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%238a8a8a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3.5' y='3.5' width='17' height='17' rx='1.5' stroke-dasharray='2.5 2'/%3E%3Ccircle cx='12' cy='9.5' r='2.75'/%3E%3Cpath d='M7.5 18c0-2.6 2-4.5 4.5-4.5s4.5 1.9 4.5 4.5'/%3E%3C/svg%3E")
+    center / 18px 18px no-repeat;
+}

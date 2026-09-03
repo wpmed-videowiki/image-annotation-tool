@@ -16,6 +16,8 @@ const ImageUploadWizard = ({
   defaultExtension,
   editorSlot,
   onStartAnother,
+  // true once the editor holds a transparent background (AI background removal)
+  hasTransparency = false,
 }) => {
   const publishState = useImagePublish({ provider, wikiSource, editorRef });
 
@@ -32,6 +34,7 @@ const ImageUploadWizard = ({
         kind: "image",
         extensionChoices,
         defaultExtension: defaultExtension || extensionChoices[0],
+        hasTransparency,
       }}
     />
   );

@@ -7,7 +7,10 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends ffmpeg \
   && rm -rf /var/lib/apt/lists/*
 
-COPY package*.json ./
+# .npmrc skips the ~230 MB CUDA/TensorRT download that onnxruntime-node's
+# postinstall would otherwise pull in; the CPU runtime is bundled
+COPY package*.json .npmrc ./
+ENV ONNXRUNTIME_NODE_INSTALL=skip
 RUN npm install --omit=dev
 
 COPY . .

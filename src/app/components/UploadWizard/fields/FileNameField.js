@@ -15,7 +15,7 @@ import {
 const FileNameField = () => {
   const t = useTranslations("UploadWizard");
   const { value, setValue, error } = useField("describe.title");
-  const { extensionChoices } = useWizardMedia();
+  const { extensionChoices, hasTransparency } = useWizardMedia();
   const state = useWizardState();
   const dispatch = useWizardDispatch();
   const extension = state.publish.extension;
@@ -71,6 +71,12 @@ const FileNameField = () => {
       {exists && !error && (
         <Typography variant="caption" color="warning.main">
           {t("errors.title_exists")}
+        </Typography>
+      )}
+      {/* a removed background only survives as PNG; JPEG fills it with black */}
+      {hasTransparency && (extension === "jpg" || extension === "jpeg") && (
+        <Typography variant="caption" color="warning.main">
+          {t("describe.png_recommended_for_transparency")}
         </Typography>
       )}
     </Stack>

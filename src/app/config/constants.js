@@ -49,6 +49,20 @@ export const MAX_IMAGE_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
 // conversion keeps a lower cap than plain device images
 export const MAX_HEIC_CONVERT_BYTES = 100 * 1024 * 1024;
 
+// --- AI background removal (u2netp via onnxruntime-node) --------------------
+// the route buffers the whole PNG and decodes it to RGBA in memory, so a byte
+// cap and a pixel cap both apply (40 MP RGBA is 160 MB raw)
+export const MAX_BACKGROUND_REMOVAL_BYTES = 100 * 1024 * 1024;
+export const MAX_BACKGROUND_REMOVAL_PIXELS = 40 * 1000 * 1000;
+export const BACKGROUND_REMOVAL_MODEL_INPUT_SIZE = 320;
+// slider 0..100: 0 keeps the raw soft mask, higher values remove more
+export const DEFAULT_BACKGROUND_REMOVAL_THRESHOLD = 10;
+// one inference at a time bounds peak memory; a few extra requests wait
+export const BACKGROUND_REMOVAL_MAX_CONCURRENT = 2;
+export const BACKGROUND_REMOVAL_MAX_QUEUE = 10;
+// fixed rather than derived from os.cpus(), which ignores container quotas
+export const DEFAULT_BACKGROUND_REMOVAL_THREADS = 4;
+
 // --- Commons upload wizard ---------------------------------------------------
 
 // Structured Data on Commons
