@@ -48,7 +48,7 @@ const UploadForm = ({
       const dataUrl = await editorRef.current.toDataURL({
         format: fileExtension === "jpg" ? "jpeg" : fileExtension,
         quality: 1,
-        multiplier: 2,
+        multiplier: 1,
       });
       const imageBlob = base64ToBlob(
         dataUrl.split(",")[1],
