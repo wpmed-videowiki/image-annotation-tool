@@ -46,6 +46,49 @@ a {
   overflow: unset !important;
 }
 
+/* Keep Apply and Cancel on the same baseline with matching icon sizes. */
+.tui-image-editor-container .tui-image-editor-submenu .tui-image-editor-submenu-item .tui-image-editor-button:is(.apply, .cancel) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  vertical-align: middle;
+}
+
+/* Match the app's primary MUI buttons. */
+.tui-image-editor-container .tui-image-editor-submenu .tui-image-editor-button.apply {
+  background-color: #1976d2;
+  color: #fff;
+  border-radius: 4px;
+  transition: background-color 150ms ease;
+}
+
+.tui-image-editor-container .tui-image-editor-submenu .tui-image-editor-button.apply:hover {
+  background-color: #1565c0;
+}
+
+.tui-image-editor-container .tui-image-editor-submenu .tui-image-editor-submenu-item .tui-image-editor-button:is(.apply, .cancel) > label {
+  line-height: 1;
+  cursor: inherit;
+}
+
+.tui-image-editor-container .tui-image-editor-submenu .tui-image-editor-submenu-item .tui-image-editor-button.apply > label {
+  color: #fff;
+  font-weight: 500;
+}
+
+.tui-image-editor-container .tui-image-editor-submenu .tui-image-editor-button:is(.apply, .cancel) > svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.tui-image-editor-container .tui-image-editor-submenu .tui-image-editor-button.apply > svg {
+  filter: brightness(0) invert(1);
+}
+
 @media (max-width: 768px) {
   /* display: table lets the bar expand past the container; block keeps it at 100% */
   .tui-image-editor-container .tui-image-editor-controls {
