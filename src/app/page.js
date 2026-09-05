@@ -106,8 +106,7 @@ export default function Home() {
   const appliedDefaultModeRef = useRef(false);
   const fileName = searchParams.get("file");
 
-  // apply the saved upload-mode preference once, before the layout first renders;
-  // flipping it later would remount the editor and lose the tui instance
+  // Apply the saved preference once; later user choices control the current mode.
   useEffect(() => {
     if (appliedDefaultModeRef.current || !fileName) return;
     const extension = fileName.split(".").pop().toLowerCase();
@@ -385,75 +384,62 @@ export default function Home() {
       ) : (
         <Grid container columnSpacing={4} rowSpacing={0} sx={{ pb: 4 }}>
           <Grid item xs={12} md={9}>
-            {/* mode switch remounts the editor and resets annotations */}
-            {imageUploadMode === "new" ? (
-              <ImageUploadWizard
-                provider={provider}
-                wikiSource={searchParams.get("wikiSource")}
-                editorRef={instanceRef}
-                hasTransparency={hasTransparency}
-                editorSlot={
-                  isSvgFile ? (
-                    <SVGEditor
-                      key={originalImageUrl}
-                      image={originalImageUrl}
-                      instanceRef={instanceRef}
-                      height={WIZARD_EDITOR_HEIGHT}
-                    />
-                  ) : (
-                    <ImageEditor
-                      key={imageUrl}
-                      image={imageUrl}
-                      instanceRef={instanceRef}
-                      id="tui-image-editor"
-                      height={WIZARD_EDITOR_HEIGHT}
-                      onTransparencyChange={setHasTransparency}
-                    />
-                  )
-                }
-                source={{
-                  kind: "commons",
-                  mediaType: "image",
-                  imageUrl,
-                  originalTitle: page?.title,
-                }}
-                prefill={{
-                  metadata: commonsDerivativeMetadata({
-                    title: page?.title.replace(/\s/g, "_").replace("File:", ""),
-                    license:
-                      license || page?.imageinfo[0].extmetadata.License?.value,
-                    author,
-                    categories,
-                  }),
-                  originalFileName: searchParams.get("file"),
-                }}
-                extensionChoices={
-                  isSvgFile ? ["svg"] : IMAGE_RASTER_EXTENSION_CHOICES
-                }
-                defaultExtension={
-                  isSvgFile
-                    ? "svg"
-                    : IMAGE_RASTER_EXTENSION_CHOICES.includes(
-                        fileName.split(".").pop().toLowerCase()
-                      )
-                    ? fileName.split(".").pop().toLowerCase()
-                    : "jpg"
-                }
-              />
-            ) : isSvgFile ? (
-              <SVGEditor
-                key={originalImageUrl}
-                image={originalImageUrl}
-                instanceRef={instanceRef}
-              />
-            ) : (
-              <ImageEditor
-                key={imageUrl}
-                image={imageUrl}
-                instanceRef={instanceRef}
-                id="tui-image-editor"
-              />
-            )}
+            {/* Keep the editor and wizard answers mounted across mode changes. */}
+            <ImageUploadWizard
+              key={`${page.wikiSource || ""}:${page.title}`}
+              mode={imageUploadMode}
+              provider={provider}
+              wikiSource={searchParams.get("wikiSource")}
+              editorRef={instanceRef}
+              hasTransparency={hasTransparency}
+              editorSlot={
+                isSvgFile ? (
+                  <SVGEditor
+                    key={originalImageUrl}
+                    image={originalImageUrl}
+                    instanceRef={instanceRef}
+                    height={imageUploadMode === "new" ? WIZARD_EDITOR_HEIGHT : undefined}
+                  />
+                ) : (
+                  <ImageEditor
+                    key={imageUrl}
+                    image={imageUrl}
+                    instanceRef={instanceRef}
+                    id="tui-image-editor"
+                    height={imageUploadMode === "new" ? WIZARD_EDITOR_HEIGHT : undefined}
+                    onTransparencyChange={setHasTransparency}
+                  />
+                )
+              }
+              source={{
+                kind: "commons",
+                mediaType: "image",
+                imageUrl,
+                originalTitle: page?.title,
+              }}
+              prefill={{
+                metadata: commonsDerivativeMetadata({
+                  title: page?.title.replace(/\s/g, "_").replace("File:", ""),
+                  license:
+                    license || page?.imageinfo[0].extmetadata.License?.value,
+                  author,
+                  categories,
+                }),
+                originalFileName: searchParams.get("file"),
+              }}
+              extensionChoices={
+                isSvgFile ? ["svg"] : IMAGE_RASTER_EXTENSION_CHOICES
+              }
+              defaultExtension={
+                isSvgFile
+                  ? "svg"
+                  : IMAGE_RASTER_EXTENSION_CHOICES.includes(
+                      fileName.split(".").pop().toLowerCase()
+                    )
+                  ? fileName.split(".").pop().toLowerCase()
+                  : "jpg"
+              }
+            />
           </Grid>
           <Grid item xs={12} md={3}>
             <Stack spacing={5}>

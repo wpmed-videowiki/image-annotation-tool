@@ -69,16 +69,21 @@ const UploadWizardShell = ({
   prefill = {},
   publishState,
   editorSlot,
+  // Overwrite uses the same mounted editor without the new-file controls.
+  mode = "new",
   media = { kind: "video", extensionChoices: ["webm"], defaultExtension: "webm" },
   // called by "Start another upload" once the job is queued; the page
   // resets its picker state, or we fall back to navigating home
   onStartAnother,
 }) => {
+  const isOverwrite = mode === "overwrite";
   const t = useTranslations("UploadWizard");
   const locale = useLocale();
   const router = useRouter();
   const theme = useTheme();
   const { user } = useAuth();
+  const canUpload = provider !== "nccommons" || !!user?.linked?.nccommons;
+  const showWizard = !isOverwrite && canUpload && !publishState.uploadedUrl;
   const isCompact = useMediaQuery(theme.breakpoints.down("sm"));
 
   const [state, dispatch] = useReducer(
@@ -109,8 +114,8 @@ const UploadWizardShell = ({
 
   // move focus to the step heading for keyboard/screen-reader users
   useEffect(() => {
-    headingRef.current?.focus();
-  }, [state.step]);
+    if (showWizard) headingRef.current?.focus();
+  }, [state.step, showWizard]);
 
   const stepErrors = useMemo(() => validateStep(state, state.step), [state]);
   const blocked = hasBlockingError(stepErrors);
@@ -190,211 +195,223 @@ const UploadWizardShell = ({
     </Alert>
   );
 
-  if (publishState.uploadedUrl) {
-    return (
-      <UploadSuccess
-        uploadedUrl={publishState.uploadedUrl}
-        wikiSource={wikiSource}
-        originalFileName={prefill.originalFileName}
-      >
-        <Stack direction="row" spacing={2}>
-          <Link href="/uploads">{t("review.leave_link")}</Link>
-          <Button size="small" onClick={startAnother}>
-            {t("review.start_another")}
-          </Button>
-        </Stack>
-        {publishState.sdc && !publishState.sdc.ok && (
-          <Alert
-            severity="warning"
-            sx={{ width: "100%" }}
-            action={
-              publishState.retrySdc && (
-                <Button
-                  color="inherit"
-                  size="small"
-                  disabled={publishState.loading}
-                  onClick={publishState.retrySdc}
-                >
-                  {t("review.sdc_retry")}
-                </Button>
-              )
-            }
-          >
-            {t("review.sdc_failed")}
-          </Alert>
-        )}
-      </UploadSuccess>
-    );
-  }
+  const uploadSuccess = publishState.uploadedUrl && (
+    <UploadSuccess
+      uploadedUrl={publishState.uploadedUrl}
+      wikiSource={wikiSource}
+      originalFileName={prefill.originalFileName}
+    >
+      <Stack direction="row" spacing={2}>
+        <Link href="/uploads">{t("review.leave_link")}</Link>
+        <Button size="small" onClick={startAnother}>
+          {t("review.start_another")}
+        </Button>
+      </Stack>
+      {publishState.sdc && !publishState.sdc.ok && (
+        <Alert
+          severity="warning"
+          sx={{ width: "100%" }}
+          action={
+            publishState.retrySdc && (
+              <Button
+                color="inherit"
+                size="small"
+                disabled={publishState.loading}
+                onClick={publishState.retrySdc}
+              >
+                {t("review.sdc_retry")}
+              </Button>
+            )
+          }
+        >
+          {t("review.sdc_failed")}
+        </Alert>
+      )}
+    </UploadSuccess>
+  );
+
+  // Images can switch back to overwrite after a new-file upload finishes.
+  // Keep their editor alive; videos retain their existing completion behavior.
+  if (media.kind !== "image" && uploadSuccess) return uploadSuccess;
 
   const stepName = STEPS[state.step];
   const isLastStep = state.step === STEPS.length - 1;
+  const showEditor = isOverwrite ||
+    (!publishState.uploadedUrl && (!canUpload || stepName === "edit"));
 
   return (
-    <RequireUploadAuth provider={provider}>
-      <Paper
-        variant="outlined"
-        // no global box-sizing reset; content-box would overhang the grid column
-        sx={{ p: { xs: 2, md: 3 }, width: "100%", boxSizing: "border-box" }}
-      >
-        <Stack spacing={3}>
-          {/* narrower than the form column so the steps stay centered */}
-          <Box sx={{ ...FORM_COLUMN_SX, maxWidth: 600 }}>
-            {isCompact ? (
-              <Stack spacing={1}>
-                <Typography variant="subtitle2" sx={{ textAlign: "center" }}>
-                  {t("common.step_of", {
-                    current: state.step + 1,
-                    total: STEPS.length,
-                    title: t(`steps.${STEP_TITLE_KEYS[state.step]}`),
-                  })}
-                </Typography>
-                <LinearProgress
-                  variant="determinate"
-                  value={((state.step + 1) / STEPS.length) * 100}
-                />
-              </Stack>
-            ) : (
-              <Stepper activeStep={state.step} alternativeLabel nonLinear>
-                {STEP_TITLE_KEYS.map((key, index) => (
-                  <Step key={key} completed={index < state.maxVisitedStep}>
-                    {index <= state.maxVisitedStep ? (
-                      <StepButton onClick={() => goTo(index)}>
-                        {t(`steps.${key}`)}
-                      </StepButton>
-                    ) : (
-                      <StepLabel>{t(`steps.${key}`)}</StepLabel>
-                    )}
-                  </Step>
-                ))}
-              </Stepper>
-            )}
-          </Box>
-
-          {/* announce step changes to screen readers */}
-          {/* width/height must be "1px", a bare 1 means 100% in sx */}
-          <Box aria-live="polite" sx={{ position: "absolute", width: "1px", height: "1px", overflow: "hidden", clip: "rect(0 0 0 0)" }}>
-            {t("common.step_of", {
-              current: state.step + 1,
-              total: STEPS.length,
-              title: t(`steps.${STEP_TITLE_KEYS[state.step]}`),
-            })}
-          </Box>
-
-          <Box component="section">
-            <Box sx={FORM_COLUMN_SX}>
-              <Typography
-                variant="h6"
-                component="h2"
-                tabIndex={-1}
-                ref={headingRef}
-                sx={{ outline: "none", mb: 2 }}
-              >
-                {t(`steps.${STEP_TITLE_KEYS[state.step]}`)}
+    <Paper
+      variant="outlined"
+      // no global box-sizing reset; content-box would overhang the grid column
+      sx={{
+        p: isOverwrite ? 0 : { xs: 2, md: 3 },
+        border: isOverwrite ? 0 : undefined,
+        width: "100%",
+        boxSizing: "border-box",
+      }}
+    >
+      <Stack spacing={isOverwrite ? 0 : 3}>
+        {!isOverwrite && uploadSuccess}
+        {!isOverwrite && !canUpload && (
+          <RequireUploadAuth provider={provider} />
+        )}
+        {/* narrower than the form column so the steps stay centered */}
+        <Box hidden={!showWizard} sx={{ ...FORM_COLUMN_SX, maxWidth: 600 }}>
+          {isCompact ? (
+            <Stack spacing={1}>
+              <Typography variant="subtitle2" sx={{ textAlign: "center" }}>
+                {t("common.step_of", {
+                  current: state.step + 1,
+                  total: STEPS.length,
+                  title: t(`steps.${STEP_TITLE_KEYS[state.step]}`),
+                })}
               </Typography>
+              <LinearProgress
+                variant="determinate"
+                value={((state.step + 1) / STEPS.length) * 100}
+              />
+            </Stack>
+          ) : (
+            <Stepper activeStep={state.step} alternativeLabel nonLinear>
+              {STEP_TITLE_KEYS.map((key, index) => (
+                <Step key={key} completed={index < state.maxVisitedStep}>
+                  {index <= state.maxVisitedStep ? (
+                    <StepButton onClick={() => goTo(index)}>
+                      {t(`steps.${key}`)}
+                    </StepButton>
+                  ) : (
+                    <StepLabel>{t(`steps.${key}`)}</StepLabel>
+                  )}
+                </Step>
+              ))}
+            </Stepper>
+          )}
+        </Box>
 
-              {touched && fieldErrors.length > 0 && (
-                <Alert severity="error" sx={{ mb: 2 }}>
-                  <AlertTitle>
-                    {t("errors.fix_issues", { count: fieldErrors.length })}
-                  </AlertTitle>
-                </Alert>
-              )}
+        {/* announce step changes to screen readers */}
+        {/* width/height must be "1px", a bare 1 means 100% in sx */}
+        <Box hidden={!showWizard} aria-live="polite" sx={{ position: "absolute", width: "1px", height: "1px", overflow: "hidden", clip: "rect(0 0 0 0)" }}>
+          {t("common.step_of", {
+            current: state.step + 1,
+            total: STEPS.length,
+            title: t(`steps.${STEP_TITLE_KEYS[state.step]}`),
+          })}
+        </Box>
 
-              {publishError && (
-                <Alert severity="error" sx={{ mb: 2 }}>
-                  {t.has(`errors.${publishError.code}`)
-                    ? t(`errors.${publishError.code}`)
-                    : publishError.message}
-                </Alert>
-              )}
+        <Box component="section">
+          <Box hidden={!showWizard} sx={FORM_COLUMN_SX}>
+            <Typography
+              variant="h6"
+              component="h2"
+              tabIndex={-1}
+              ref={headingRef}
+              sx={{ outline: "none", mb: 2 }}
+            >
+              {t(`steps.${STEP_TITLE_KEYS[state.step]}`)}
+            </Typography>
 
-              {leaveHint}
-            </Box>
-
-            {editorSlot && (
-              // hidden, not unmounted: the editors lose all edits on remount
-              <Box sx={{ display: stepName === "edit" ? "block" : "none" }}>
-                {editorSlot}
-              </Box>
+            {touched && fieldErrors.length > 0 && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                <AlertTitle>
+                  {t("errors.fix_issues", { count: fieldErrors.length })}
+                </AlertTitle>
+              </Alert>
             )}
 
-            <Box sx={FORM_COLUMN_SX}>
-              <WizardProvider
-                state={state}
-                dispatch={dispatch}
-                errors={fieldErrors}
-                touched={touched}
-                media={media}
-              >
-                {stepName === "rights" && <StepRights provider={provider} />}
-                {stepName === "describe" && (
-                  <StepDescribe provider={provider} source={source} />
-                )}
-                {stepName === "review" && (
-                  <StepReview
-                    provider={provider}
-                    otherVersions={otherVersions}
-                    publishState={publishState}
-                  />
-                )}
-              </WizardProvider>
-            </Box>
+            {publishError && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {t.has(`errors.${publishError.code}`)
+                  ? t(`errors.${publishError.code}`)
+                  : publishError.message}
+              </Alert>
+            )}
+
+            {leaveHint}
           </Box>
 
-          <Box
-            sx={{
-              position: "sticky",
-              bottom: 0,
-              py: 1.5,
-              bgcolor: "background.paper",
-              borderTop: 1,
-              borderColor: "divider",
-              zIndex: 1,
-            }}
-          >
-            <Stack
-              direction={{ xs: "column-reverse", sm: "row" }}
-              spacing={1}
-              justifyContent="space-between"
-              sx={FORM_COLUMN_SX}
-            >
-              <Button
-                onClick={() => goTo(state.step - 1)}
-                disabled={state.step === 0 || publishState.loading}
-              >
-                {t("common.back")}
-              </Button>
+          {editorSlot && (
+            // hidden, not unmounted: the editors lose all edits on remount
+            <Box sx={{ display: showEditor ? "block" : "none" }}>
+              {editorSlot}
+            </Box>
+          )}
 
-              {isLastStep ? (
+          <Box hidden={!showWizard} sx={FORM_COLUMN_SX}>
+            <WizardProvider
+              state={state}
+              dispatch={dispatch}
+              errors={fieldErrors}
+              touched={touched}
+              media={media}
+            >
+              {stepName === "rights" && <StepRights provider={provider} />}
+              {stepName === "describe" && (
+                <StepDescribe provider={provider} source={source} />
+              )}
+              {stepName === "review" && (
+                <StepReview
+                  provider={provider}
+                  otherVersions={otherVersions}
+                  publishState={publishState}
+                />
+              )}
+            </WizardProvider>
+          </Box>
+        </Box>
+
+        <Box
+          hidden={!showWizard}
+          sx={{
+            position: "sticky",
+            bottom: 0,
+            py: 1.5,
+            bgcolor: "background.paper",
+            borderTop: 1,
+            borderColor: "divider",
+            zIndex: 1,
+          }}
+        >
+          <Stack
+            direction={{ xs: "column-reverse", sm: "row" }}
+            spacing={1}
+            justifyContent="space-between"
+            sx={FORM_COLUMN_SX}
+          >
+            <Button
+              onClick={() => goTo(state.step - 1)}
+              disabled={state.step === 0 || publishState.loading}
+            >
+              {t("common.back")}
+            </Button>
+
+            {isLastStep ? (
+              <Button
+                variant="contained"
+                startIcon={<UploadFile />}
+                onClick={onPublish}
+                disabled={publishState.loading || blocked}
+                sx={{ minWidth: 200 }}
+              >
+                {publishState.loading ? t("review.publishing") : t("review.publish")}
+              </Button>
+            ) : (
+              // span wrapper so the tooltip still works when disabled
+              <span>
                 <Button
                   variant="contained"
-                  startIcon={<UploadFile />}
-                  onClick={onPublish}
-                  disabled={publishState.loading || blocked}
-                  sx={{ minWidth: 200 }}
+                  onClick={onNext}
+                  disabled={blocked}
+                  aria-describedby={blocked ? "blocking-warning" : undefined}
+                  sx={{ minWidth: 160 }}
                 >
-                  {publishState.loading ? t("review.publishing") : t("review.publish")}
+                  {t("common.next")}
                 </Button>
-              ) : (
-                // span wrapper so the tooltip still works when disabled
-                <span>
-                  <Button
-                    variant="contained"
-                    onClick={onNext}
-                    disabled={blocked}
-                    aria-describedby={blocked ? "blocking-warning" : undefined}
-                    sx={{ minWidth: 160 }}
-                  >
-                    {t("common.next")}
-                  </Button>
-                </span>
-              )}
-            </Stack>
-          </Box>
-        </Stack>
-      </Paper>
-    </RequireUploadAuth>
+              </span>
+            )}
+          </Stack>
+        </Box>
+      </Stack>
+    </Paper>
   );
 };
 

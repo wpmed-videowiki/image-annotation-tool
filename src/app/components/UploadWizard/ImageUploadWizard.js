@@ -15,6 +15,7 @@ const ImageUploadWizard = ({
   extensionChoices = IMAGE_RASTER_EXTENSION_CHOICES,
   defaultExtension,
   editorSlot,
+  mode = "new",
   onStartAnother,
   // true once the editor holds a transparent background (AI background removal)
   hasTransparency = false,
@@ -29,6 +30,7 @@ const ImageUploadWizard = ({
       prefill={prefill}
       publishState={publishState}
       editorSlot={editorSlot}
+      mode={mode}
       onStartAnother={onStartAnother}
       media={{
         kind: "image",
