@@ -5,6 +5,8 @@ import {
   GridLegacy as Grid,
   Container,
   CircularProgress,
+  Divider,
+  Typography,
 } from "@mui/material";
 import { useSearchParams } from "next/navigation";
 import {
@@ -26,8 +28,7 @@ import {
   SUPPORTED_OVERWRITE_EXTENSIONS,
 } from "./config/constants";
 import SearchForm from "./components/SearchForm";
-import VideoFilePicker from "./components/VideoFilePicker";
-import ImageFilePicker from "./components/ImageFilePicker";
+import MediaFilePicker from "./components/MediaFilePicker";
 import { EMPTY_METADATA } from "./utils/uploadMetadata";
 import { normalizeCategoryName, parseLicenseTag } from "./utils/licenseMapping";
 import { useTranslations } from "next-intl";
@@ -234,13 +235,19 @@ export default function Home() {
         <Stack
           alignItems="center"
           justifyContent="center"
-          spacing={4}
           sx={{ flex: 1, py: 4 }}
         >
-          <SearchForm />
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <ImageFilePicker onFileSelected={setDeviceImageFile} />
-            <VideoFilePicker onFileSelected={setDeviceVideoFile} />
+          <Stack spacing={3} sx={{ width: "100%", maxWidth: 640, minWidth: 0 }}>
+            <SearchForm />
+            <Divider>
+              <Typography variant="body2" color="text.secondary" sx={{ px: 1 }}>
+                {t("MediaFilePicker_or")}
+              </Typography>
+            </Divider>
+            <MediaFilePicker
+              onImageSelected={setDeviceImageFile}
+              onVideoSelected={setDeviceVideoFile}
+            />
           </Stack>
         </Stack>
       </Container>
